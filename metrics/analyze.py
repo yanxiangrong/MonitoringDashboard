@@ -44,15 +44,15 @@ class CpuUsageCalculator:
         index: 分组后的样本索引
         """
         samples = get_samples_by_labels(index, "windows_cpu_time_total")
-        0.0
-        total = 0.0
-        values: dict[tuple[str, str], list[float]] = defaultdict(list)
 
+        # 1. 收集 values
+        values: dict[tuple[str, str], list[float]] = defaultdict(list)
         for sample, _ts in samples:
             core = sample.labels.get("core")
             mode = sample.labels.get("mode")
             values[(core, mode)].append(float(sample.value))
 
+        # 2. 计算 avg_values 和 deltas
         avg_values: dict[tuple[str, str], float] = {}
         deltas: dict[tuple[str, str], float] = {}
         for key, value_list in values.items():
@@ -63,18 +63,18 @@ class CpuUsageCalculator:
                 self.prev_values[key] = avg_value
             deltas[key] = avg_value - self.prev_values[key]
 
-        usages: dict[str, float] = {}
-        totals: dict[str, float] = {}
-        for core, mode in deltas.keys():
-            delta = deltas[(core, mode)]
+        # 3. 统计 usages 和 totals
+        usages: dict[str, float] = defaultdict(float)
+        totals: dict[str, float] = defaultdict(float)
+        for (core, mode), delta in deltas.items():
             totals[core] += delta
             if mode not in self.mode_exclude:
                 usages[core] += delta
 
-        # 计算CPU使用率
+        # 4. 计算 CPU 使用率
         usages_rate: dict[str, float] = {
             core: (usages[core] / totals[core] * 100) if totals[core] > 0 else 0
-            for core in usages.keys()
+            for core in totals.keys()
         }
 
         return usages_rate
