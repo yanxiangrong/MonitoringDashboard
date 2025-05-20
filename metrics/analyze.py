@@ -50,28 +50,24 @@ class CpuUsageCalculator:
         for sample, _ts in samples:
             core = sample.labels.get("core")
             mode = sample.labels.get("mode")
-            values[(core, mode)].append(float(sample.value))
+            values[(core, mode)].append(sample.value)
 
-        # 2. 计算 avg_values 和 deltas
+        # 2. 计算 avg_values, 统计 usages 和 totals
         avg_values: dict[tuple[str, str], float] = {}
-        deltas: dict[tuple[str, str], float] = {}
-        for key, value_list in values.items():
-            avg_value = statistics.mean(value_list)
-            avg_values[key] = avg_value
-            if key not in self.prev_values:
-                # 如果没有历史值，直接保存当前值
-                self.prev_values[key] = avg_value
-            deltas[key] = avg_value - self.prev_values[key]
-
-        # 3. 统计 usages 和 totals
         usages: dict[str, float] = defaultdict(float)
         totals: dict[str, float] = defaultdict(float)
-        for (core, mode), delta in deltas.items():
+        for (core, mode), value_list in values.items():
+            avg_value = statistics.mean(value_list)
+            avg_values[(core, mode)] = avg_value
+            if (core, mode) not in self.prev_values:
+                self.prev_values[(core, mode)] = avg_value
+            delta = avg_value - self.prev_values[(core, mode)]
+
             totals[core] += delta
             if mode not in self.mode_exclude:
                 usages[core] += delta
 
-        # 4. 计算 CPU 使用率
+        # 3. 计算 CPU 使用率
         usages_rate: dict[str, float] = {
             core: (usages[core] / totals[core] * 100) if totals[core] > 0 else 0
             for core in totals.keys()
