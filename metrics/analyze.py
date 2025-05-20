@@ -1,36 +1,12 @@
-import math
 import statistics
 from collections import defaultdict
 from typing import Literal, Any
 
-from prometheus_client.samples import Sample
-
-from metrics.collect import TimedSample
-from metrics.index import get_samples_by_labels, index_samples, TimedSampleList, GroupedSamples
+from metrics.index import get_samples_by_labels, GroupedSamples
 
 AggType = Literal["avg", "sum", "max", "min", "count"]
 
 
-def aggregate_samples(samples: TimedSampleList, agg: str = "avg") -> float:
-    """
-    对样本值做聚合分析
-    agg: "avg", "sum", "max", "min", "count"
-    """
-    values = [float(sample.value) for sample, _ in samples]
-    if not values:
-        return 0.0
-    if agg == "avg":
-        return sum(values) / len(values)
-    elif agg == "sum":
-        return sum(values)
-    elif agg == "max":
-        return max(values)
-    elif agg == "min":
-        return min(values)
-    elif agg == "count":
-        return len(values)
-    else:
-        raise ValueError(f"Unknown agg: {agg}")
 
 
 class CpuUsageCalculator:

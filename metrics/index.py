@@ -1,42 +1,55 @@
-from typing import TypeAlias
+from typing import Iterable
 
-from metrics.collect import TimedSample
+from black.trans import defaultdict
+from prometheus_client.samples import Sample
 
-TimedSampleList = list[TimedSample]
-GroupedSamples: TypeAlias = dict[str, list[TimedSample]]
-Label : TypeAlias = dict[str, str]
+from metrics.types import Samples, GroupedSamples, Label
 
 
-def index_samples(samples: TimedSampleList) -> GroupedSamples:
+def group_by_name(samples: Samples) -> GroupedSamples:
     """
     按 metric 名称分组，返回字典
     """
-    index: GroupedSamples = {}
+    index = defaultdict(list)
     for sample, ts in samples:
-        index.setdefault(sample.name, []).append((sample, ts))
+        index[sample.name].append(samples)
     return index
 
 
-def get_samples_by_labels(
-        index: GroupedSamples,
-        metric_name: str,
-        label_filter: Label  = None
-) -> TimedSampleList:
+def filter_by_labels(samples: Samples, labels: Label = None) -> Iterable[Sample]:
     """
     从 index 中按 metric_name 和 label_filter 过滤样本
 
     Args:
-        index (GroupedSamples): 分组后的样本索引
-        metric_name (str): 指定的 metric 名称
-        label_filter (Label): 标签过滤器，字典形式，键为标签名，值为标签值
+        samples (Samples): 样本列表
+        labels (Label): 标签过滤器，字典格式，键为标签名，值为标签值
     Returns:
         TimedSampleList: 过滤后的样本列表
     """
-    result = []
-    samples = index.get(metric_name, [])
-    if not label_filter:
-        return samples.copy()  # 返回所有样本
-    for sample, ts in samples:
-        if all(sample.labels.get(k) == v for k, v in label_filter.items()):
-            result.append((sample, ts))
-    return result
+    if not labels:
+        return samples  # 返回所有样本
+    return [
+        sample for sample in samples
+        if all(sample.labels.get(k) == v for k, v in labels.items())
+    ]
+
+def aggregate_by_labels(samples: Samples,label:Label = None, agg: str = "avg") -> Sample:
+    """
+    对样本值做聚合分析
+    agg: "avg", "sum", "max", "min", "count"
+    """
+    values = [float(sample.value) for sample in filter_by_labels(samples, label)]
+    if not values:
+        return
+    if agg == "avg":
+        return sum(values) / len(values)
+    elif agg == "sum":
+        return sum(values)
+    elif agg == "max":
+        return max(values)
+    elif agg == "min":
+        return min(values)
+    elif agg == "count":
+        return len(values)
+    else:
+        raise ValueError(f"Unknown agg: {agg}")

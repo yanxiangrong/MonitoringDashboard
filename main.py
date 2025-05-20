@@ -1,5 +1,4 @@
 import time
-from collections import deque
 
 from metrics.analyze import Analyzer
 from metrics.collect import collect_metrics
