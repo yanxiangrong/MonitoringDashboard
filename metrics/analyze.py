@@ -52,13 +52,11 @@ class CpuUsageCalculator:
             mode = sample.labels.get("mode")
             values[(core, mode)].append(sample.value)
 
-        # 2. 计算 avg_values, 统计 usages 和 totals
-        avg_values: dict[tuple[str, str], float] = {}
+        # 2. 统计 usages 和 totals
         usages: dict[str, float] = defaultdict(float)
         totals: dict[str, float] = defaultdict(float)
         for (core, mode), value_list in values.items():
             avg_value = statistics.mean(value_list)
-            avg_values[(core, mode)] = avg_value
             if (core, mode) not in self.prev_values:
                 self.prev_values[(core, mode)] = avg_value
             delta = avg_value - self.prev_values[(core, mode)]
