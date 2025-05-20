@@ -1,18 +1,19 @@
 import time
-from typing import Generator, Any
+from typing import Generator, Any, TypeAlias
 
 import requests
 from prometheus_client.parser import text_string_to_metric_families
 from prometheus_client.samples import Sample
 
+TimedSample:TypeAlias  = tuple[Sample, float]
 
-def collect_metrics(url: str) -> Generator[tuple[Sample, float], Any, None]:
+def collect_metrics(url: str) -> Generator[TimedSample, Any, None]:
     """
     Collect metrics from the given URL.
     Args:
         url (str): The URL to collect metrics from.
     Yields:
-        tuple[Sample, float]: A tuple containing the sample and the scrape time.
+        TimedSample: A tuple containing the sample and the scrape time.
     """
     resp = requests.get(url)
     resp.raise_for_status()

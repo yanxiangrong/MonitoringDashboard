@@ -1,30 +1,36 @@
-from prometheus_client.samples import Sample
+from typing import TypeAlias
+
+from metrics.collect import TimedSample
+
+TimedSampleList = list[TimedSample]
+GroupedSamples: TypeAlias = dict[str, list[TimedSample]]
+Label : TypeAlias = dict[str, str]
 
 
-def index_samples(samples: list[tuple[Sample, float]]) -> dict[str, list[tuple[Sample, float]]]:
+def index_samples(samples: TimedSampleList) -> GroupedSamples:
     """
     按 metric 名称分组，返回字典
     """
-    index: dict[str, list[tuple[Sample, float]]] = {}
+    index: GroupedSamples = {}
     for sample, ts in samples:
         index.setdefault(sample.name, []).append((sample, ts))
     return index
 
 
 def get_samples_by_labels(
-        index: dict[str, list[tuple]],
+        index: GroupedSamples,
         metric_name: str,
-        label_filter: dict = None
-) -> list[tuple]:
+        label_filter: Label  = None
+) -> TimedSampleList:
     """
     从 index 中按 metric_name 和 label_filter 过滤样本
 
     Args:
-        index: {metric_name: [(Sample, ts), ...]}
-        metric_name: 指标名
-        label_filter: dict，label 过滤条件，如 {"instance": "host1"}，可不填
+        index (GroupedSamples): 分组后的样本索引
+        metric_name (str): 指定的 metric 名称
+        label_filter (Label): 标签过滤器，字典形式，键为标签名，值为标签值
     Returns:
-        list[tuple]: 所有匹配的 (Sample, ts)
+        TimedSampleList: 过滤后的样本列表
     """
     result = []
     samples = index.get(metric_name, [])

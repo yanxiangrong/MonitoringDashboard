@@ -1,9 +1,17 @@
+import math
+import statistics
 from collections import defaultdict
+from typing import Literal
 
-from metrics.index import get_samples_by_labels, index_samples
+from prometheus_client.samples import Sample
+
+from metrics.collect import TimedSample
+from metrics.index import get_samples_by_labels, index_samples, TimedSampleList, GroupedSamples
+
+AggType = Literal["avg", "sum", "max", "min", "count"]
 
 
-def aggregate_samples(samples: list[tuple], agg: str = "avg") -> float:
+def aggregate_samples(samples: TimedSampleList, agg: str = "avg") -> float:
     """
     对样本值做聚合分析
     agg: "avg", "sum", "max", "min", "count"
@@ -25,72 +33,86 @@ def aggregate_samples(samples: list[tuple], agg: str = "avg") -> float:
         raise ValueError(f"Unknown agg: {agg}")
 
 
-def calculate_cpu_usage(samples: list[tuple], mode_exclude=("idle",)) -> float:
-    """
-    计算CPU使用率（百分比）
-    samples: 某一instance所有core、mode的样本
-    mode_exclude: 排除哪些mode（如idle、iowait）
-    """
-    # 按 (core, mode) 分组
-    grouped = defaultdict(list)
-    for sample, ts in samples:
-        core = sample.labels.get("core")
-        mode = sample.labels.get("mode")
-        grouped[(core, mode)].append((sample, ts))
+class CpuUsageCalculator:
+    def __init__(self, mode_exclude=("idle",)):
+        self.prev_values: dict[tuple[str, str], float] = {}  # key: (core, mode), value: (value, timestamp)
+        self.mode_exclude = mode_exclude
 
-    usage = 0.0
-    total = 0.0
-    for (core, mode), group in grouped.items():
-        if len(group) < 2:
-            continue
-        # 取最新两条
-        (s1, t1), (s2, t2) = group[-2], group[-1]
-        delta = float(s2.value) - float(s1.value)
-        if mode in mode_exclude:
-            total += delta
-        else:
-            usage += delta
-            total += delta
-    if total == 0:
-        return 0.0
-    return usage / total * 100
+    def calculate_cpu_usage(self, index: GroupedSamples) -> dict[str, float]:
+        """
+        计算CPU使用率（百分比）
+        index: 分组后的样本索引
+        """
+        samples = get_samples_by_labels(index, "windows_cpu_time_total")
+        0.0
+        total = 0.0
+        values: dict[tuple[str, str], list[float]] = defaultdict(list)
+
+        for sample, _ts in samples:
+            core = sample.labels.get("core")
+            mode = sample.labels.get("mode")
+            values[(core, mode)].append(float(sample.value))
+
+        avg_values: dict[tuple[str, str], float] = {}
+        deltas: dict[tuple[str, str], float] = {}
+        for key, value_list in values.items():
+            avg_value = statistics.mean(value_list)
+            avg_values[key] = avg_value
+            if key not in self.prev_values:
+                # 如果没有历史值，直接保存当前值
+                self.prev_values[key] = avg_value
+            deltas[key] = avg_value - self.prev_values[key]
+
+        usages: dict[str, float] = {}
+        totals: dict[str, float] = {}
+        for core, mode in deltas.keys():
+            delta = deltas[(core, mode)]
+            totals[core] += delta
+            if mode not in self.mode_exclude:
+                usages[core] += delta
+
+        # 计算CPU使用率
+        usages_rate: dict[str, float] = {
+            core: (usages[core] / totals[core] * 100) if totals[core] > 0 else 0
+            for core in usages.keys()
+        }
+
+        return usages_rate
 
 
-def calculate_memory_usage(avail_samples, total_samples) -> float:
+def calculate_memory_usage(avail_samples: TimedSampleList, total_samples: TimedSampleList) -> float:
     """
     计算内存使用率（百分比）
+    avail_samples: 可用内存样本
+    total_samples: 总内存样本
     """
-    # 获取最新的可用和总内存
     if not avail_samples or not total_samples:
         return 0.0
-    avail = float(avail_samples[-1][0].value)
-    total = float(total_samples[-1][0].value)
+    avail = aggregate_samples(avail_samples, "avg")
+    total = aggregate_samples(total_samples, "avg")
     if total == 0:
         return 0.0
-    used = total - avail
-    return used / total * 100
+    return (total - avail) / total * 100
 
 
-def analyze_all(index):
-    cpu_samples = get_samples_by_labels(index, "windows_cpu_time_total")
-    cpu_usage = calculate_cpu_usage(cpu_samples)
-
-    avail_samples = get_samples_by_labels(index, "windows_memory_available_bytes")
-    total_samples = get_samples_by_labels(index, "windows_memory_total_bytes")
-    mem_usage = calculate_memory_usage(avail_samples, total_samples)
-    return {
-        "cpu_usage_percent": cpu_usage,
-        "memory_usage_percent": mem_usage,
-    }
+cpu_calc = CpuUsageCalculator()
 
 
-def analyze_history(history):
-    results = []
-    for samples in history:
-        index = index_samples(samples)
-        metrics = analyze_all(index)
-        results.append(metrics)
-    return results  # 这是一个列表，每个元素是一次分析结果
+class Analyzer:
+    def __init__(self):
+        self.cpu_calculator = CpuUsageCalculator()
+
+    def analyze_all(self, index):
+        cpu_samples = get_samples_by_labels(index, "windows_cpu_time_total")
+        cpu_usage = cpu_calc.calculate_cpu_usage(cpu_samples)
+
+        avail_samples = get_samples_by_labels(index, "windows_memory_available_bytes")
+        total_samples = get_samples_by_labels(index, "windows_memory_total_bytes")
+        mem_usage = calculate_memory_usage(avail_samples, total_samples)
+        return {
+            "cpu_usage_percent": cpu_usage,
+            "memory_usage_percent": mem_usage,
+        }
 
 
 def extract_disk_usage():
