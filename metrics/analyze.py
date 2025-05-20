@@ -1,7 +1,7 @@
 import math
 import statistics
 from collections import defaultdict
-from typing import Literal
+from typing import Literal, Any
 
 from prometheus_client.samples import Sample
 
@@ -43,6 +43,7 @@ class CpuUsageCalculator:
         计算CPU使用率（百分比）
         index: 分组后的样本索引
         """
+
         samples = get_samples_by_labels(index, "windows_cpu_time_total")
 
         # 1. 收集 values
@@ -50,7 +51,7 @@ class CpuUsageCalculator:
         for sample, _ts in samples:
             core = sample.labels.get("core")
             mode = sample.labels.get("mode")
-            values[(core, mode)].append(sample.value)
+            values[(core, mode)].append(float(sample.value))
 
         # 2. 统计 usages 和 totals
         usages: dict[str, float] = defaultdict(float)
@@ -67,51 +68,37 @@ class CpuUsageCalculator:
 
         # 3. 计算 CPU 使用率
         usages_rate: dict[str, float] = {
-            core: (usages[core] / totals[core] * 100) if totals[core] > 0 else 0
+            core: (usages[core] / totals[core] * 100) if totals[core] > 0 else 0.0
             for core in totals.keys()
         }
 
         return usages_rate
 
 
-def calculate_memory_usage(avail_samples: TimedSampleList, total_samples: TimedSampleList) -> float:
+def calculate_memory_usage(index: GroupedSamples) -> float:
     """
     计算内存使用率（百分比）
-    avail_samples: 可用内存样本
-    total_samples: 总内存样本
+    index: 分组后的样本索引
     """
-    if not avail_samples or not total_samples:
-        return 0.0
+
+    avail_samples = get_samples_by_labels(index, "windows_os_physical_memory_free_bytes")
+    total_samples = get_samples_by_labels(index, "windows_cs_physical_memory_bytes")
+
     avail = aggregate_samples(avail_samples, "avg")
     total = aggregate_samples(total_samples, "avg")
-    if total == 0:
-        return 0.0
-    return (total - avail) / total * 100
 
-
-cpu_calc = CpuUsageCalculator()
+    return (total - avail) / total * 100 if total > 0 else 0.0
 
 
 class Analyzer:
     def __init__(self):
         self.cpu_calculator = CpuUsageCalculator()
 
-    def analyze_all(self, index):
-        cpu_samples = get_samples_by_labels(index, "windows_cpu_time_total")
-        cpu_usage = cpu_calc.calculate_cpu_usage(cpu_samples)
+    def analyze_all(self, index: GroupedSamples) -> dict[str, Any]:
+        cpu_usage = self.cpu_calculator.calculate_cpu_usage(index)
 
-        avail_samples = get_samples_by_labels(index, "windows_memory_available_bytes")
-        total_samples = get_samples_by_labels(index, "windows_memory_total_bytes")
-        mem_usage = calculate_memory_usage(avail_samples, total_samples)
+        mem_usage = calculate_memory_usage(index)
         return {
             "cpu_usage_percent": cpu_usage,
             "memory_usage_percent": mem_usage,
         }
-
-
-def extract_disk_usage():
-    pass
-
-
-def extract_network_usage():
-    pass
