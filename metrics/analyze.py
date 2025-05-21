@@ -84,9 +84,8 @@ class CpuUsageAnalyzer(MetricAnalyzer):
         totals: dict[str, float] = defaultdict(float)
         for (core, mode), value_list in values.items():
             avg_value = statistics.mean(value_list)
-            if (core, mode) not in self.prev_values:
-                self.prev_values[(core, mode)] = avg_value
-            delta = avg_value - self.prev_values[(core, mode)]
+            delta = avg_value - self.prev_values.get((core, mode), avg_value)
+            self.prev_values[(core, mode)] = avg_value
 
             totals[core] += delta
             if mode not in self.mode_exclude:
