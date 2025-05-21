@@ -39,31 +39,48 @@ class TimeSeries(tk.Canvas):
         highlight = int(self["highlightthickness"])
         x0 = border + highlight
         y0 = border + highlight
-        w, h = self.winfo_width() - x0, self.winfo_height() - y0
+        w, h = self.winfo_width() - 2 * x0, self.winfo_height() - 2 * y0
         if w <= 1 or h <= 1:
             return
 
         # 画内部网格
         dt = self.end_time - self.start_time
+        offset = self.end_time % (dt / 10)
         for i in range(1, 10):
-            offset = self.end_time % (dt / 10)
-            x = int(((i + 1) / 10 - offset / dt) * w)
-            self.create_line(x, y0, x, h - 1, fill="lightgray", dash=(2, 2))
-            y = int(i * h / 10)
-            self.create_line(x0, y, w - 1, y, fill="lightgray", dash=(2, 2))
+            x = int(((i + 1) / 10 - offset / dt) * w) + x0
+            self.create_line(x, y0, x, y0 + h - 1, fill="lightgray", dash=(2, 2))
+            y = int(i * h / 10) + y0
+            self.create_line(x0, y, x0 + w - 1, y, fill="lightgray", dash=(2, 2))
 
-        # 画折线
-        points_last: tuple[int, int] | None = None
-        for ts, val in self.values:
-            x = int((ts - self.start_time) * w / dt)
-            y = int(h - (val - self.min_value) * h / dt)
-            if points_last is not None:
-                x1, y1 = points_last
-                self.create_line(x1, y1, x, y, fill="blue", width=1)
-            points_last = (x, y)
+        # 画填充折线（面积图）
+        if self.values:
+            # 计算所有点
+            points = []
+            for ts, val in self.values:
+                x = int((ts - self.start_time) * w / dt) + x0
+                y = (
+                    int(
+                        h
+                        - (val - self.min_value) * h / (self.max_value - self.min_value)
+                    )
+                    + y0
+                )
+                points.append((x, y))
+            # 构造多边形点序列（首尾加底边）
+            if len(points) >= 2:
+                poly_points = (
+                    [(points[0][0], y0 + h - 1)]
+                    + points
+                    + [(points[-1][0], y0 + h - 1)]
+                )
+                # 转为一维坐标序列
+                poly_coords = [coord for point in poly_points for coord in point]
+                self.create_polygon(
+                    poly_coords, fill="#a0c8f0", outline="blue", width=1
+                )
 
         # 画边框
-        self.create_rectangle(x0, y0, w - 1, h - 1, outline="black", width=1)
+        self.create_rectangle(x0, y0, x0 + w - 1, y0 + h - 1, outline="black", width=1)
 
 
 class MonitoringDashboardApp:
