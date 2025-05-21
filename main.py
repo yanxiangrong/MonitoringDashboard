@@ -20,6 +20,7 @@ def main():
         print()
         print(f"Memory Usage: {memory_usage.samples[0].value}%")
 
+
     # 注册远程采集器
     engine.register_collector(RemoteMetricsCollector(EXPORTER_URL))
     engine.register_analyzer(CpuUsageAnalyzer())
