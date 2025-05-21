@@ -74,7 +74,7 @@ class CpuUsageAnalyzer(MetricAnalyzer):
 
         # 1. 收集 values
         values: dict[tuple[str, str], list[float]] = defaultdict(list)
-        for sample, _ts in samples:
+        for sample in samples:
             core = sample.labels.get("core")
             mode = sample.labels.get("mode")
             values[(core, mode)].append(float(sample.value))
@@ -120,8 +120,8 @@ class MemoryTrendAnalyzer(MetricAnalyzer):
             return
 
         # 2. 计算内存使用率
-        memory_free = next(iter(avg_by(memory_free_metric.samples)), 0.0)
-        memory_total = next(iter(avg_by(memory_total_metric.samples)), 0.0)
+        memory_free = next(iter(avg_by(memory_free_metric.samples))).value
+        memory_total = next(iter(avg_by(memory_total_metric.samples))).value
         memory_usage = (
             (memory_total - memory_free) / memory_total * 100
             if memory_total > 0
