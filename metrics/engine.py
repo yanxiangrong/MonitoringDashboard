@@ -104,7 +104,7 @@ class MetricEngine:
         :param labels: 按哪些labels过滤，None表示不过滤
         """
         if not self.history or metric_name not in self.history[-1][1]:
-            return
+            return None
 
         if end_time is None:
             end_time = time.time()
@@ -139,7 +139,7 @@ class MetricEngine:
         return self.history[-1][0]
 
     def _run(self):
-        start_time = time.time()
+        next_time = time.time() + self.interval
         while not self._stop_event.is_set():
             # 采集所有指标
             metrics = self.registry.collect()
@@ -157,11 +157,9 @@ class MetricEngine:
             # 执行回调
             for callback in self.update_callbacks:
                 callback()
-            # 计算本次循环耗时
+            # 计算下次采集时间
             now_time = time.time()
-            elapsed = now_time - start_time
-            start_time = now_time
-            # 只 sleep 剩余的时间
-            sleep_time = self.interval - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            while next_time < now_time:
+                next_time += self.interval
+            sleep_time = next_time - now_time
+            time.sleep(sleep_time)

@@ -1,4 +1,5 @@
 import statistics
+from collections import defaultdict
 from typing import Iterable, Literal
 
 from prometheus_client import Metric
@@ -25,6 +26,7 @@ def filter_by(
     for s in assert_samples_consistent(samples):
         if not labels:
             yield s
+            continue
         if all(s.labels.get(k) == v for k, v in labels.items()):
             yield s
 
@@ -131,3 +133,40 @@ def count_by(
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
     return aggregate_by(samples, "count", labels)
+
+
+def group_samples_by_time(samples: Iterable[Sample]) -> dict[float, list[Sample]]:
+    """
+    按时间戳分组样本
+    :param samples: 样本列表
+    :return: 时间戳 -> 样本列表的映射
+    """
+    grouped_samples = defaultdict(list)
+    for sample in assert_samples_consistent(samples):
+        grouped_samples[sample.timestamp].append(sample)
+    return grouped_samples
+
+
+def get_value_from_metric(
+    metric: Metric,
+    filter_labels: dict[str, str] | None = None,
+    agg: AggType = "avg",
+) -> list[tuple[float, float]]:
+    """
+    从指标中获取值
+    :param metric: 指标对象
+    :param filter_labels: 过滤条件
+    :param agg: 聚合方式
+    :return: 指标值
+    """
+    filtered = filter_by(metric.samples, filter_labels)
+    grouped_samples = group_samples_by_time(filtered)
+    grouped_values: dict[float, float] = {}
+    for timestamp, samples in grouped_samples.items():
+        aggregated = next(iter(aggregate_by(samples, agg=agg)))
+        grouped_values[timestamp] = aggregated.value
+
+    return [
+        (timestamp, grouped_values[timestamp])
+        for timestamp in sorted(grouped_values.keys())
+    ]

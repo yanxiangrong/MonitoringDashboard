@@ -1,6 +1,4 @@
-import time
 import tkinter as tk
-from typing import Iterable
 
 from metrics.analyze import CpuUsageAnalyzer, MemoryTrendAnalyzer
 from metrics.collect import RemoteMetricsCollector
@@ -11,14 +9,14 @@ from metrics.index import get_value_from_metric
 EXPORTER_URL = "http://localhost:9182/metrics"
 
 
-class LineChart(tk.Canvas):
+class TimeSeries(tk.Canvas):
     def __init__(self, master=None, **kwargs):
         super().__init__(master, **kwargs)
-        self.values: Iterable[float] | None = None
+        self.values: list[tuple[float, float]] = []
         self.max_value = 100
         self.min_value = 0
 
-    def update_values(self, values: Iterable[float]):
+    def update_values(self, values: list[tuple[float, float]]):
         self.values = values
         self.draw_chart()
 
@@ -29,12 +27,12 @@ class LineChart(tk.Canvas):
         x_step = 5
 
         points_last: tuple[int, int] | None = None
-        for i, val in enumerate(self.values):
-            x = w - i * x_step
+        for i, (ts, val) in enumerate(self.values):
+            x = i * x_step
             y = int(h - (val - self.min_value) * h / (self.max_value - self.min_value))
             if points_last is not None:
                 x0, y0 = points_last
-                self.create_line(x0, y, x, y, fill="blue", width=1)
+                self.create_line(x0, y0, x, y, fill="blue", width=1)
             points_last = (x, y)
 
 
@@ -43,7 +41,7 @@ class MonitoringDashboardApp:
         self.root: tk.Tk = root
         self.root.title("MonitoringDashboard")
         self.w, self.h = 600, 400
-        self.chart = LineChart(root, width=600, height=300)
+        self.chart = TimeSeries(root, width=600, height=300)
         self.chart.pack()
 
         self.engine = MetricEngine(interval=1, history_size=600)
@@ -52,20 +50,20 @@ class MonitoringDashboardApp:
         self.engine.register_analyzer(MemoryTrendAnalyzer())
 
         # 用于保存历史数据，便于后续画图
-        self.cpu_history = []
-        self.memory_history = []
+        self.cpu_history: list[tuple[float, float]] = []
+        self.memory_history: list[tuple[float, float]] = []
 
         # 启动引擎
         self.engine.register_on_update(self.refresh_ui)
         self.engine.start()
 
     def update_metrics(self):
-        now = time.time()
+        scrape_time = self.engine.get_last_scrape_time()
         cpu_usage_metrics = self.engine.get_metric_range(
-            "cpu_usage_percent", now - 60, now
+            "cpu_usage_percent", scrape_time - 60, scrape_time
         )
         memory_usage_metrics = self.engine.get_metric_range(
-            "memory_usage_percent", now - 60, now
+            "memory_usage_percent", scrape_time - 60, scrape_time
         )
 
         self.cpu_history = get_value_from_metric(cpu_usage_metrics)

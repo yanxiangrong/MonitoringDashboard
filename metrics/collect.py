@@ -12,6 +12,7 @@ class RemoteMetricsCollector(Collector):
     """
     一个从远程 Prometheus Exporter URL 拉取并转发指标的 Collector。
     """
+
     def __init__(self, url: str):
         """
         Args:
@@ -25,8 +26,6 @@ class RemoteMetricsCollector(Collector):
             resp = requests.get(self.url)
             resp.raise_for_status()
             self.last_scrape_time = time.time()
-            for family in text_string_to_metric_families(resp.text):
-                # family 是 MetricFamily，直接 yield
-                yield family
+            yield from text_string_to_metric_families(resp.text)
         except requests.RequestException as e:
             logging.error(f"Failed to collect remote metrics: {e}", exc_info=True)
