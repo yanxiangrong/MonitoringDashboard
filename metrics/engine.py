@@ -2,7 +2,7 @@ import bisect
 import threading
 import time
 from collections import deque
-from typing import Callable, TypeAlias, Deque, Iterable
+from typing import Callable, TypeAlias, Deque
 
 from prometheus_client import CollectorRegistry, Metric
 
@@ -95,7 +95,7 @@ class MetricEngine:
         start_time: float,
         end_time: float | None = None,
         labels: dict[str, str] | None = None,
-    ) -> Iterable[Metric]:
+    ) -> Metric | None:
         """
         获取指定时间范围内的 metric 数据，并按 labels 过滤。
         :param metric_name: 指标名称
@@ -109,26 +109,37 @@ class MetricEngine:
         if end_time is None:
             end_time = time.time()
 
-        for i in range(
-            bisect.bisect_left(self.history, start_time, key=lambda x: x[0]),
-            len(self.history),
-        ):
+        start_idx = bisect.bisect_left(self.history, start_time, key=lambda x: x[0])
+        end_idx = len(self.history)
+        filed_metric: Metric | None = None
+        for i in range(start_idx, end_idx):
             scrape_time, metric_dict = self.history[i]
-            if scrape_time > end_time:
+            if scrape_time < start_time or scrape_time > end_time:
                 continue
             if metric_name not in metric_dict:
                 continue
             metric = metric_dict[metric_name]
+            if filed_metric is None:
+                filed_metric = Metric(
+                    metric.name, metric.documentation, metric.type, metric.unit
+                )
             if labels is None:
-                yield metric
+                filed_metric.samples += metric.samples
                 continue
-            filed_metric = Metric(
-                metric.name, metric.documentation, metric.type, metric.unit
-            )
-            filed_metric.samples = list(filter_by(metric.samples, labels=labels))
-            yield filed_metric
+            filed_metric.samples += list(filter_by(metric.samples, labels=labels))
+        return filed_metric
+
+    def get_last_scrape_time(self) -> float | None:
+        """
+        获取最后一次采集的时间戳
+        :return: 最后一次采集的时间戳
+        """
+        if not self.history:
+            return None
+        return self.history[-1][0]
 
     def _run(self):
+        start_time = time.time()
         while not self._stop_event.is_set():
             # 采集所有指标
             metrics = self.registry.collect()
@@ -146,5 +157,11 @@ class MetricEngine:
             # 执行回调
             for callback in self.update_callbacks:
                 callback()
-            # 等待下次采集
-            time.sleep(self.interval)
+            # 计算本次循环耗时
+            now_time = time.time()
+            elapsed = now_time - start_time
+            start_time = now_time
+            # 只 sleep 剩余的时间
+            sleep_time = self.interval - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
