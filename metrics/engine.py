@@ -6,7 +6,7 @@ from typing import Callable, TypeAlias, Deque, Iterable
 from prometheus_client import CollectorRegistry, Metric
 
 from metrics.analyze import MetricAnalyzer
-from metrics.index import filter_by
+from metrics.index import filter_by, build_metric_map
 
 # 回调类型：metric, labels, scrape_time
 MetricCallback: TypeAlias = Callable[[], None]
@@ -77,7 +77,16 @@ class MetricEngine:
         """
         if not self.history or metric_name not in self.history[-1][1]:
             return None
-        return filter_by(self.history[-1][1][metric_name], labels=labels)
+
+        metric = self.history[-1][1][metric_name]
+        if labels is None:
+            return metric
+
+        filed_metric = Metric(
+            metric.name, metric.documentation, metric.type, metric.unit
+        )
+        filed_metric.samples = list(filter_by(metric.samples, labels=labels))
+        return filed_metric
 
     def get_metric_range(
         self,
@@ -93,24 +102,36 @@ class MetricEngine:
         :param end_time: 结束时间（时间戳），None表示当前时间
         :param labels: 按哪些labels过滤，None表示不过滤
         """
+        if not self.history or metric_name not in self.history[-1][1]:
+            return
+
         if end_time is None:
             end_time = time.time()
-        return (
-            filter_by(m[metric_name], labels=labels)
-            for t, m in self.history
-            if start_time <= t <= end_time and metric_name in m
-        )
+
+        for scrape_time, metric_dict in self.history:
+            if scrape_time < start_time or scrape_time > end_time:
+                continue
+            if metric_name not in metric_dict:
+                continue
+            metric = metric_dict[metric_name]
+            filed_metric = Metric(
+                metric.name, metric.documentation, metric.type, metric.unit
+            )
+            filed_metric.samples = list(filter_by(metric.samples, labels=labels))
+            yield filed_metric
 
     def _run(self):
         while not self._stop_event.is_set():
             # 采集所有指标
             metrics = self.registry.collect()
+            # 采集时间
             scrape_time = time.time()
             # 计算所有表达式
+            metric_map = build_metric_map(metrics)
             all_metric_dict: dict[str, Metric] = {
                 m.name: m
                 for analyzer in self.analyzers
-                for m in analyzer.analyze(metrics, scrape_time)
+                for m in analyzer.analyze(metric_map, scrape_time)
             }
             # 更新历史
             self.history.append((scrape_time, all_metric_dict))

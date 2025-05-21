@@ -1,28 +1,76 @@
 import statistics
 from collections import defaultdict
-from typing import Literal, Any, Iterable
+from typing import Iterable
 
 from prometheus_client import Metric
+from prometheus_client.samples import Sample
 
-from metrics.index import get_samples_by_labels, GroupedSamples
-
-AggType = Literal["avg", "sum", "max", "min", "count"]
-
+from metrics.index import avg_by
 
 
+class MetricAnalyzer:
+    """
+    读取采集到的所有 metrics，分析并生成新的 metrics。
+    """
 
-class CpuUsageCalculator:
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        metrics: 采集到的所有 MetricFamily 或 Sample
+        返回：新的 MetricFamily 或 Sample 列表
+        """
+        raise NotImplementedError
+
+
+class CpuUsageAnalyzer(MetricAnalyzer):
+    """
+    分析 CPU 使用率
+    """
+
     def __init__(self, mode_exclude=("idle",)):
-        self.prev_values: dict[tuple[str, str], float] = {}  # key: (core, mode), value: (value, timestamp)
+        """
+        mode_exclude: 排除的 CPU 模式（如 idle）
+        """
+
+        self.prev_values: dict[tuple[str, str], float] = (
+            {}
+        )  # key: (core, mode), value: (value, timestamp)
         self.mode_exclude = mode_exclude
 
-    def calculate_cpu_usage(self, index: GroupedSamples) -> dict[str, float]:
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        metrics: 采集到的所有 MetricFamily 或 Sample
+        返回：新的 MetricFamily 或 Sample 列表
+        """
+        # 1. 收集 CPU 使用率指标
+        cpu_usage_metric = metrics.get("windows_cpu_time")
+        if not cpu_usage_metric:
+            return []
+
+        # 2. 计算 CPU 使用率
+        cpu_usage = self.calculate_cpu_usage(cpu_usage_metric.samples)
+
+        # 3. 返回新的指标
+        new_metric = Metric("cpu_usage_percent", "CPU Usage Percentage", "gauge")
+        for core, usage in cpu_usage.items():
+            new_metric.add_sample(
+                "cpu_usage_percent",
+                {"core": core},
+                value=usage,
+                timestamp=scrape_time,
+            )
+
+        return [new_metric]
+
+    def calculate_cpu_usage(self, samples: Iterable[Sample]) -> dict[str, float]:
         """
         计算CPU使用率（百分比）
-        index: 分组后的样本索引
+        samples: CPU 使用率指标的样本列表
+        返回：每个 CPU 核心的使用率（百分比）
         """
-
-        samples = get_samples_by_labels(index, "windows_cpu_time_total")
 
         # 1. 收集 values
         values: dict[tuple[str, str], list[float]] = defaultdict(list)
@@ -53,41 +101,40 @@ class CpuUsageCalculator:
         return usages_rate
 
 
-def calculate_memory_usage(index: GroupedSamples) -> float:
+class MemoryTrendAnalyzer(MetricAnalyzer):
     """
-    计算内存使用率（百分比）
-    index: 分组后的样本索引
+    分析内存使用率趋势
     """
 
-    avail_samples = get_samples_by_labels(index, "windows_os_physical_memory_free_bytes")
-    total_samples = get_samples_by_labels(index, "windows_cs_physical_memory_bytes")
-
-    avail = aggregate_samples(avail_samples, "avg")
-    total = aggregate_samples(total_samples, "avg")
-
-    return (total - avail) / total * 100 if total > 0 else 0.0
-
-
-class Analyzer:
-    def __init__(self):
-        self.cpu_calculator = CpuUsageCalculator()
-
-    def analyze_all(self, index: GroupedSamples) -> dict[str, Any]:
-        cpu_usage = self.cpu_calculator.calculate_cpu_usage(index)
-
-        mem_usage = calculate_memory_usage(index)
-        return {
-            "cpu_usage_percent": cpu_usage,
-            "memory_usage_percent": mem_usage,
-        }
-
-class MetricAnalyzer:
-    """
-    读取采集到的所有 metrics，分析并生成新的 metrics。
-    """
-    def analyze(self, metrics:Iterable[Metric], scrape_time:float) -> Iterable[Metric]:
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
         """
         metrics: 采集到的所有 MetricFamily 或 Sample
         返回：新的 MetricFamily 或 Sample 列表
         """
-        raise NotImplementedError
+        # 1. 收集内存指标
+        memory_free_metric = metrics.get("windows_os_physical_memory_free_bytes")
+        memory_total_metric = metrics.get("windows_cs_physical_memory_bytes")
+        if not memory_free_metric or not memory_total_metric:
+            return
+
+        # 2. 计算内存使用率
+        memory_free = next(iter(avg_by(memory_free_metric.samples)), 0.0)
+        memory_total = next(iter(avg_by(memory_total_metric.samples)), 0.0)
+        memory_usage = (
+            (memory_total - memory_free) / memory_total * 100
+            if memory_total > 0
+            else 0.0
+        )
+
+        # 3. 返回新的指标
+        new_metric = Metric("memory_usage_percent", "Memory Usage Percentage", "gauge")
+        new_metric.add_sample(
+            "memory_usage_percent",
+            {},
+            value=memory_usage,
+            timestamp=scrape_time,
+        )
+
+        yield new_metric

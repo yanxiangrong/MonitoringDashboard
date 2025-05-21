@@ -1,3 +1,5 @@
+import time
+
 from metrics.collect import RemoteMetricsCollector
 from metrics.engine import MetricEngine
 
@@ -10,8 +12,9 @@ def main():
 
     # 注册远程采集器
     engine.register_collector(RemoteMetricsCollector(EXPORTER_URL))
-    while True:
-        pass
+    engine.start()
+    time.sleep(10)
+    engine.stop()
 
 
 if __name__ == "__main__":

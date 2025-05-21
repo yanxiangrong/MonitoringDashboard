@@ -1,21 +1,19 @@
-from prometheus_client import Metric
+from typing import Iterable
+
+from prometheus_client.samples import Sample
 
 
-def check_metric_samples_consistency(metric: Metric) -> bool:
+def assert_samples_consistent(samples: Iterable[Sample]):
     """
-    检查Metric的所有Sample是否具有相同的name和timestamp
+    断言所有 Sample 的 name 和 timestamp 都一致，否则抛出 ValueError。
     """
-    if not metric.samples:
-        return True  # 空样本视为一致
-
-    first_name = metric.samples[0].name
-    first_ts = metric.samples[0].timestamp
-
-    for s in metric.samples:
-        if s.name != first_name or s.timestamp != first_ts:
-            return False
-    return True
-
-def assert_metric_samples_consistency(metric: Metric):
-    if not check_metric_samples_consistency(metric):
-        raise ValueError("All samples in the metric must have the same name and timestamp")
+    first_name = ""
+    first_timestamp = 0.0
+    for idx, s in enumerate(samples):
+        if idx == 0:
+            first_name = s.name
+            first_timestamp = s.timestamp
+        else:
+            if s.name != first_name or s.timestamp != first_timestamp:
+                raise ValueError("All samples must have the same name and timestamp.")
+        yield s
