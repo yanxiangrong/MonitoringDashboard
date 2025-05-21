@@ -1,6 +1,8 @@
 import statistics
 from collections import defaultdict
-from typing import Literal, Any
+from typing import Literal, Any, Iterable
+
+from prometheus_client import Metric
 
 from metrics.index import get_samples_by_labels, GroupedSamples
 
@@ -78,3 +80,14 @@ class Analyzer:
             "cpu_usage_percent": cpu_usage,
             "memory_usage_percent": mem_usage,
         }
+
+class MetricAnalyzer:
+    """
+    读取采集到的所有 metrics，分析并生成新的 metrics。
+    """
+    def analyze(self, metrics:Iterable[Metric], scrape_time:float) -> Iterable[Metric]:
+        """
+        metrics: 采集到的所有 MetricFamily 或 Sample
+        返回：新的 MetricFamily 或 Sample 列表
+        """
+        raise NotImplementedError

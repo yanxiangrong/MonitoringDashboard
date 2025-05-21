@@ -1,9 +1,5 @@
-from typing import TypeAlias, Iterable
+from typing import TypeAlias
 
-from prometheus_client.samples import Sample
+MetricMap : TypeAlias = dict[str, Metric]
 
-Samples: TypeAlias = Iterable[Sample]
-
-GroupedSamples: TypeAlias = dict[str, Samples]
 Label: TypeAlias = dict[str, str]
-SamplesOfSameName: TypeAlias = dict[str, Samples]
