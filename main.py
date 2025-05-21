@@ -46,11 +46,12 @@ class TimeSeries(tk.Canvas):
         # 画内部网格
         dt = self.end_time - self.start_time
         offset = self.end_time % (dt / 10)
-        for i in range(1, 10):
+        for i in range(0, 10):
             x = int(((i + 1) / 10 - offset / dt) * w) + x0
             self.create_line(x, y0, x, y0 + h - 1, fill="lightgray", dash=(2, 2))
-            y = int(i * h / 10) + y0
-            self.create_line(x0, y, x0 + w - 1, y, fill="lightgray", dash=(2, 2))
+            if i > 0:
+                y = int(i * h / 10) + y0
+                self.create_line(x0, y, x0 + w - 1, y, fill="lightgray", dash=(2, 2))
 
         # 画填充折线（面积图）
         if self.values:
