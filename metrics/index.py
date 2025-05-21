@@ -2,22 +2,48 @@ from typing import Iterable
 
 from prometheus_client import Metric
 
-from metrics.types import Label, MetricMap
 from metrics.utils import check_metric_samples_consistency
 
 
-def build_metric_map(metrics: Iterable[Metric]) -> MetricMap:
+def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:
     """
     将 Metric 列表转换为 name -> Metric 的映射
     """
     return {m.name: m for m in metrics}
 
 
-def aggregate_by(metric: Metric, agg: str = "avg", label: Iterable[str]|None = None) -> Metric:
+def filter_by(metric: Metric, labels: dict[str, str] | None = None) -> Metric:
+    """
+    过滤样本
+    labels: 按哪些labels过滤，None表示不过滤
+    """
+    # 校验一致性
+    check_metric_samples_consistency(metric)
+
+    if not metric.samples:
+        return Metric(metric.name, metric.documentation, metric.type, metric.unit)
+
+    # 过滤
+    filtered_metric = Metric(
+        metric.name, metric.documentation, metric.type, metric.unit
+    )
+    for s in metric.samples:
+        if labels is not None and not all(
+            s.labels.get(k) == v for k, v in labels.items()
+        ):
+            continue
+        filtered_metric.add_sample(s.name, s.labels, s.value, s.timestamp)
+
+    return filtered_metric
+
+
+def aggregate_by(
+    metric: Metric, agg: str = "avg", labels: Iterable[str] | None = None
+) -> Metric:
     """
     对样本值做聚合分析
     agg: "avg", "sum", "max", "min", "count"
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
 
     # 校验一致性
@@ -29,12 +55,12 @@ def aggregate_by(metric: Metric, agg: str = "avg", label: Iterable[str]|None = N
     # 分组
     group_dict = {}
     for s in metric.samples:
-        if label is None:
+        if labels is None:
             group_key = tuple()  # 全部聚合为一组
             group_labels = {}
         else:
-            group_key = tuple((k, s.labels.get(k, "")) for k in label)
-            group_labels = {k: s.labels.get(k, "") for k in label}
+            group_key = tuple((k, s.labels.get(k, "")) for k in labels)
+            group_labels = {k: s.labels.get(k, "") for k in labels}
         if group_key not in group_dict:
             group_dict[group_key] = {"values": [], "labels": group_labels}
         group_dict[group_key]["values"].append(s.value)
@@ -61,38 +87,44 @@ def aggregate_by(metric: Metric, agg: str = "avg", label: Iterable[str]|None = N
         sample0 = metric.samples[0]
         agg_metric.add_sample(sample0.name, labels, agg_value, sample0.timestamp)
 
-
     return agg_metric
 
-def sum_by(metric: Metric, label: Label = None) -> Metric:
+
+def sum_by(metric: Metric, labels: dict[str, str] = None) -> Metric:
     """
     对样本值做求和
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
-    return aggregate_by(metric, "sum", label)
-def avg_by(metric: Metric, label: Label = None) -> Metric:
+    return aggregate_by(metric, "sum", labels)
+
+
+def avg_by(metric: Metric, labels: dict[str, str] = None) -> Metric:
     """
     对样本值做平均值
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
-    return aggregate_by(metric, "avg", label)
-def max_by(metric: Metric, label: Label = None) -> Metric:
+    return aggregate_by(metric, "avg", labels)
+
+
+def max_by(metric: Metric, labels: dict[str, str] = None) -> Metric:
     """
     对样本值做最大值
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
-    return aggregate_by(metric, "max", label)
+    return aggregate_by(metric, "max", labels)
 
-def min_by(metric: Metric, label: Label = None) -> Metric:
+
+def min_by(metric: Metric, labels: dict[str, str] = None) -> Metric:
     """
     对样本值做最小值
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
-    return aggregate_by(metric, "min", label)
+    return aggregate_by(metric, "min", labels)
 
-def count_by(metric: Metric, label: Label = None) -> Metric:
+
+def count_by(metric: Metric, labels: dict[str, str] = None) -> Metric:
     """
     对样本值做计数
-    label: 按哪些label分组聚合，None表示全部聚合为一组
+    labels: 按哪些labels分组聚合，None表示全部聚合为一组
     """
-    return aggregate_by(metric, "count", label)
+    return aggregate_by(metric, "count", labels)
