@@ -12,6 +12,8 @@ EXPORTER_URL = "http://localhost:9182/metrics"
 class TimeSeries(tk.Canvas):
     def __init__(self, master=None, **kwargs):
         self.outline = kwargs.pop("outline", "steelblue")
+        self.title = kwargs.pop("title", "")
+        self.value_text = kwargs.pop("value_text", "")
         kwargs |= {
             "highlightthickness": 0,
         }
@@ -36,6 +38,10 @@ class TimeSeries(tk.Canvas):
         self.values = values
         self.start_time = start_time
         self.end_time = end_time
+        self.draw_chart()
+
+    def update_value_text(self, value_text: str):
+        self.value_text = value_text
         self.draw_chart()
 
     def draw_chart(self):
@@ -91,6 +97,25 @@ class TimeSeries(tk.Canvas):
             x0, y0, x0 + w - 1, y0 + h - 1, outline="dimgray", width=1
         )
 
+        # 画标题
+        if self.title:
+            self.create_text(
+                x0 + 5,
+                y0 + 5,
+                text=self.title,
+                anchor="nw",
+                fill="dimgray",
+            )
+        # 画数值
+        if self.value_text:
+            self.create_text(
+                x0 + w - 5,
+                y0 + h - 5,
+                text=self.value_text,
+                anchor="se",
+                fill="dimgray",
+            )
+
 
 class MonitoringDashboardApp:
     def __init__(self, root: tk.Tk):
@@ -98,9 +123,9 @@ class MonitoringDashboardApp:
         self.root.title("MonitoringDashboard")
         self.w, self.h = 600, 400
         self.root.geometry(f"{self.w}x{self.h}")
-        self.cpu_chart = TimeSeries(root, outline="steelblue")
+        self.cpu_chart = TimeSeries(root, outline="steelblue", title="CPU Usage")
         self.cpu_chart.grid(row=0, column=0, padx=2, pady=2, sticky="nsew")
-        self.memory_chart = TimeSeries(root, outline="slateblue")
+        self.memory_chart = TimeSeries(root, outline="slateblue", title="Memory Usage")
         self.memory_chart.grid(row=1, column=0, padx=2, pady=2, sticky="nsew")
 
         # 设置行和列的权重
@@ -147,13 +172,11 @@ class MonitoringDashboardApp:
         self.cpu_chart.update_values(
             self.cpu_history, self.scrape_time - 60, self.scrape_time
         )
-        self.cpu_chart.create_text(10, 10, text="CPU Usage", anchor="nw")
 
         # 绘制内存使用率图表
         self.memory_chart.update_values(
             self.memory_history, self.scrape_time - 60, self.scrape_time
         )
-        self.memory_chart.create_text(10, 10, text="Memory Usage", anchor="nw")
 
     def mainloop(self):
         self.root.mainloop()
