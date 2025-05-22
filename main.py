@@ -104,7 +104,6 @@ class TimeSeries(tk.Canvas):
                 y0 + 5,
                 text=self.title,
                 anchor="nw",
-                fill="dimgray",
             )
         # 画数值
         if self.value_text:
@@ -113,7 +112,6 @@ class TimeSeries(tk.Canvas):
                 y0 + h - 5,
                 text=self.value_text,
                 anchor="se",
-                fill="dimgray",
             )
 
 
