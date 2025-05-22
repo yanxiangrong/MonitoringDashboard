@@ -5,7 +5,7 @@ from typing import Iterable
 from prometheus_client import Metric
 from prometheus_client.samples import Sample
 
-from metrics.index import avg_by
+from metrics.index import avg_by, sum_by
 
 
 class MetricAnalyzer:
@@ -202,3 +202,42 @@ class PhysicalDiskActiveTimeAnalyzer(MetricAnalyzer):
                 ("read", disk): sample["read"],
                 ("write", disk): sample["write"],
             }
+
+
+class NetworkSpeedAnalyzer(MetricAnalyzer):
+    """
+    分析网络速度
+    """
+
+    def __init__(self):
+        self.last_network_counters: float = 0.0
+        self.last_network_time: float = 0.0
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        计算网络速度（合并收发速率），返回新的 Metric。
+        """
+
+        # 1. 收集网络指标
+        network_metric = metrics.get("windows_network_bytes_total")
+        if not network_metric:
+            return
+
+        # 2. 计算网络速度
+        network_speed = sum_by(network_metric.samples)[0].value
+        self.last_network_counters = network_speed
+        self.last_network_time = scrape_time
+        network_speed_metric = Metric(
+            "network_speed_mbps", "Network Speed in Mbps", "gauge"
+        )
+        network_speed_metric.add_sample(
+            "network_speed_mbps",
+            {},
+            value=network_speed,
+            timestamp=scrape_time,
+        )
+
+        # 3. 返回新的指标
+        yield network_speed_metric
