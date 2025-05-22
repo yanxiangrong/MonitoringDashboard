@@ -27,7 +27,21 @@ class TimeSeries(tk.Canvas):
             blend_color(self.winfo_rgb(self.outline), self.winfo_rgb(self["bg"]), 0.25)
         )
 
-        self.bind("<Configure>", lambda _e: self.draw_chart())
+        self._redraw_scheduled = False
+        self.bind("<Configure>", self.on_configure)
+
+    def on_configure(self, _event):
+        self.schedule_redraw()
+
+    def schedule_redraw(self):
+        def on_redraw():
+            self.draw_chart()
+            self._redraw_scheduled = False
+
+        if not self._redraw_scheduled:
+            self._redraw_scheduled = True
+
+            self.after_idle(on_redraw)
 
     def update_values(
         self,
@@ -38,11 +52,13 @@ class TimeSeries(tk.Canvas):
         self.values = values
         self.start_time = start_time
         self.end_time = end_time
-        self.draw_chart()
+
+        self.schedule_redraw()
 
     def update_value_text(self, value_text: str):
         self.value_text = value_text
-        self.draw_chart()
+
+        self.schedule_redraw()
 
     def draw_chart(self):
         self.delete("all")
@@ -57,9 +73,9 @@ class TimeSeries(tk.Canvas):
 
         # 画内部网格
         dt = self.end_time - self.start_time
-        offset = self.end_time % (dt / 10)
+        offset = self.end_time % (dt / 10) if dt > 0 else 0
         for i in range(0, 10):
-            x = int(((i + 1) / 10 - offset / dt) * w) + x0
+            x = int(((i + 1) / 10 - offset / dt if dt > 0 else 0) * w) + x0
             self.create_line(x, y0, x, y0 + h - 1, fill="lightgray", dash=(2, 2))
             if i > 0:
                 y = int(i * h / 10) + y0
@@ -109,9 +125,9 @@ class TimeSeries(tk.Canvas):
         if self.value_text:
             self.create_text(
                 x0 + w - 5,
-                y0 + h - 5,
+                y0 + 5,
                 text=self.value_text,
-                anchor="se",
+                anchor="ne",
             )
 
 
@@ -160,21 +176,20 @@ class MonitoringDashboardApp:
         self.cpu_history = get_value_from_metric(cpu_usage_metrics)
         self.memory_history = get_value_from_metric(memory_usage_metrics)
 
-    def refresh_ui(self):
-        # 每秒刷新一次
-        self.update_metrics()
-        self.root.after(0, self.draw_metrics)
-
-    def draw_metrics(self):
         # 绘制 CPU 使用率图表
         self.cpu_chart.update_values(
             self.cpu_history, self.scrape_time - 60, self.scrape_time
         )
-
+        self.cpu_chart.update_value_text(f"{self.cpu_history[-1][1]:.1f}%")
         # 绘制内存使用率图表
         self.memory_chart.update_values(
             self.memory_history, self.scrape_time - 60, self.scrape_time
         )
+        self.memory_chart.update_value_text(f"{self.memory_history[-1][1]:.1f}%")
+
+    def refresh_ui(self):
+        # 每秒刷新一次
+        self.update_metrics()
 
     def mainloop(self):
         self.root.mainloop()
