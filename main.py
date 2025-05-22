@@ -11,6 +11,8 @@ EXPORTER_URL = "http://localhost:9182/metrics"
 
 class TimeSeries(tk.Canvas):
     def __init__(self, master=None, **kwargs):
+        self.fill = kwargs.pop("fill", "lightsteelblue")
+        self.outline = kwargs.pop("outline", "steelblue")
         kwargs |= {
             "highlightthickness": 0,
         }
@@ -77,11 +79,13 @@ class TimeSeries(tk.Canvas):
                 # 转为一维坐标序列
                 poly_coords = [coord for point in poly_points for coord in point]
                 self.create_polygon(
-                    poly_coords, fill="#a0c8f0", outline="blue", width=1
+                    poly_coords, fill=self.fill, outline=self.outline, width=1
                 )
 
         # 画边框
-        self.create_rectangle(x0, y0, x0 + w - 1, y0 + h - 1, outline="black", width=1)
+        self.create_rectangle(
+            x0, y0, x0 + w - 1, y0 + h - 1, outline="dimgray", width=1
+        )
 
 
 class MonitoringDashboardApp:
@@ -89,8 +93,10 @@ class MonitoringDashboardApp:
         self.root: tk.Tk = root
         self.root.title("MonitoringDashboard")
         self.w, self.h = 600, 400
-        self.chart = TimeSeries(root, width=600, height=300)
-        self.chart.pack()
+        self.cpu_chart = TimeSeries(root, width=600, height=300)
+        self.cpu_chart.pack(padx=5, pady=5)
+        self.memory_chart = TimeSeries(root, width=600, height=300)
+        self.memory_chart.pack(padx=5, pady=5)
 
         self.engine = MetricEngine(interval=1, history_size=600)
         self.engine.register_collector(RemoteMetricsCollector(EXPORTER_URL))
@@ -126,14 +132,16 @@ class MonitoringDashboardApp:
 
     def draw_metrics(self):
         # 绘制 CPU 使用率图表
-        self.chart.update_values(
+        self.cpu_chart.update_values(
             self.cpu_history, self.scrape_time - 60, self.scrape_time
         )
-        # self.chart.create_text(10, 10, text="CPU Usage", anchor="nw")
+        self.cpu_chart.create_text(10, 10, text="CPU Usage", anchor="nw")
 
         # 绘制内存使用率图表
-        # self.chart.update_values(self.memory_history)
-        # self.chart.create_text(10, 30, text="Memory Usage", anchor="nw")
+        self.memory_chart.update_values(
+            self.memory_history, self.scrape_time - 60, self.scrape_time
+        )
+        self.memory_chart.create_text(10, 10, text="Memory Usage", anchor="nw")
 
     def mainloop(self):
         self.root.mainloop()
