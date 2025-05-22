@@ -27,21 +27,10 @@ class TimeSeries(tk.Canvas):
             blend_color(self.winfo_rgb(self.outline), self.winfo_rgb(self["bg"]), 0.25)
         )
 
-        self._redraw_scheduled = False
         self.bind("<Configure>", self.on_configure)
 
     def on_configure(self, _event):
-        self.schedule_redraw()
-
-    def schedule_redraw(self):
-        def on_redraw():
-            self.draw_chart()
-            self._redraw_scheduled = False
-
-        if not self._redraw_scheduled:
-            self._redraw_scheduled = True
-
-            self.after_idle(on_redraw)
+        self.after_idle(self.draw_chart)
 
     def update_values(
         self,
@@ -53,12 +42,8 @@ class TimeSeries(tk.Canvas):
         self.start_time = start_time
         self.end_time = end_time
 
-        self.schedule_redraw()
-
     def update_value_text(self, value_text: str):
         self.value_text = value_text
-
-        self.schedule_redraw()
 
     def draw_chart(self):
         self.delete("all")
@@ -181,11 +166,13 @@ class MonitoringDashboardApp:
             self.cpu_history, self.scrape_time - 60, self.scrape_time
         )
         self.cpu_chart.update_value_text(f"{self.cpu_history[-1][1]:.1f}%")
+        self.root.after_idle(self.cpu_chart.draw_chart)
         # 绘制内存使用率图表
         self.memory_chart.update_values(
             self.memory_history, self.scrape_time - 60, self.scrape_time
         )
         self.memory_chart.update_value_text(f"{self.memory_history[-1][1]:.1f}%")
+        self.root.after_idle(self.memory_chart.draw_chart)
 
     def refresh_ui(self):
         # 每秒刷新一次
