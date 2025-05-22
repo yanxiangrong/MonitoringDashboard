@@ -154,9 +154,9 @@ class PhysicalDiskActiveTimeAnalyzer(MetricAnalyzer):
         计算磁盘IO使用率（按活动时间占比），返回新的 Metric。
         """
         # 1. 收集磁盘指标
-        idle_metric = metrics.get("windows_physical_disk_idle_seconds_total")
-        read_metric = metrics.get("windows_physical_disk_read_seconds_total")
-        write_metric = metrics.get("windows_physical_disk_write_seconds_total")
+        idle_metric = metrics.get("windows_physical_disk_idle_seconds")
+        read_metric = metrics.get("windows_physical_disk_read_seconds")
+        write_metric = metrics.get("windows_physical_disk_write_seconds")
         if not idle_metric or not read_metric or not write_metric:
             return
 
@@ -167,6 +167,10 @@ class PhysicalDiskActiveTimeAnalyzer(MetricAnalyzer):
             values[sample.labels.get("disk")]["read"] = float(sample.value)
         for sample in write_metric.samples:
             values[sample.labels.get("disk")]["write"] = float(sample.value)
+
+        new_metric = Metric(
+            "disk_io_util_percent", "Disk IO Utilization Percentage", "gauge"
+        )
 
         # 2. 遍历所有磁盘
         for disk, sample in values.items():
@@ -185,23 +189,19 @@ class PhysicalDiskActiveTimeAnalyzer(MetricAnalyzer):
             io_util = (delta_read + delta_write) / total * 100 if total > 0 else 0.0
 
             # 4. 返回新的指标
-            new_metric = Metric(
-                "disk_io_util_percent", "Disk IO Utilization Percentage", "gauge"
-            )
             new_metric.add_sample(
                 "disk_io_util_percent",
                 {"disk": disk},
                 value=io_util,
                 timestamp=scrape_time,
             )
-            yield new_metric
 
             # 5. 更新历史
-            self.last_disk_counters = {
-                ("idle", disk): sample["idle"],
-                ("read", disk): sample["read"],
-                ("write", disk): sample["write"],
-            }
+            self.last_disk_counters[("idle", disk)] = sample["idle"]
+            self.last_disk_counters[("read", disk)] = sample["read"]
+            self.last_disk_counters[("write", disk)] = sample["write"]
+
+        yield new_metric
 
 
 class NetworkSpeedAnalyzer(MetricAnalyzer):
@@ -221,13 +221,24 @@ class NetworkSpeedAnalyzer(MetricAnalyzer):
         """
 
         # 1. 收集网络指标
-        network_metric = metrics.get("windows_network_bytes_total")
+        network_metric = metrics.get("windows_net_bytes")
         if not network_metric:
             return
 
         # 2. 计算网络速度
-        network_speed = sum_by(network_metric.samples)[0].value
-        self.last_network_counters = network_speed
+        network_counters = next(iter(sum_by(network_metric.samples))).value
+        delta_time = (
+            scrape_time - self.last_network_time if self.last_network_time else 0.0
+        )
+        delta_bytes = (
+            network_counters - self.last_network_counters
+            if self.last_network_counters
+            else 0.0
+        )
+        network_speed = (
+            (delta_bytes / delta_time) * 8 / 1024 / 1024 if delta_time > 0 else 0.0
+        )
+        self.last_network_counters = network_counters
         self.last_network_time = scrape_time
         network_speed_metric = Metric(
             "network_speed_mbps", "Network Speed in Mbps", "gauge"
