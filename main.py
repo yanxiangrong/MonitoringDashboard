@@ -11,7 +11,6 @@ EXPORTER_URL = "http://localhost:9182/metrics"
 
 class TimeSeries(tk.Canvas):
     def __init__(self, master=None, **kwargs):
-        self.fill = kwargs.pop("fill", "lightsteelblue")
         self.outline = kwargs.pop("outline", "steelblue")
         kwargs |= {
             "highlightthickness": 0,
@@ -22,6 +21,11 @@ class TimeSeries(tk.Canvas):
         self.min_value = 0
         self.start_time = 0
         self.end_time = 0
+        self.fill = rgb_to_hex(
+            blend_color(self.winfo_rgb(self.outline), self.winfo_rgb(self["bg"]), 0.25)
+        )
+
+        self.bind("<Configure>", lambda _e: self.draw_chart())
 
     def update_values(
         self,
@@ -93,11 +97,19 @@ class MonitoringDashboardApp:
         self.root: tk.Tk = root
         self.root.title("MonitoringDashboard")
         self.w, self.h = 600, 400
-        self.cpu_chart = TimeSeries(root, width=600, height=300)
-        self.cpu_chart.pack(padx=5, pady=5)
-        self.memory_chart = TimeSeries(root, width=600, height=300)
-        self.memory_chart.pack(padx=5, pady=5)
+        self.root.geometry(f"{self.w}x{self.h}")
+        self.cpu_chart = TimeSeries(root, outline="steelblue")
+        self.cpu_chart.grid(row=0, column=0, padx=2, pady=2, sticky="nsew")
+        self.memory_chart = TimeSeries(root, outline="slateblue")
+        self.memory_chart.grid(row=1, column=0, padx=2, pady=2, sticky="nsew")
 
+        # 设置行和列的权重
+        root.grid_rowconfigure(0, weight=1)
+        root.grid_rowconfigure(1, weight=1)
+        root.grid_columnconfigure(0, weight=1)
+        # root.grid_columnconfigure(1, weight=1)
+
+        # limegreen saddlebrown
         self.engine = MetricEngine(interval=1, history_size=600)
         self.engine.register_collector(RemoteMetricsCollector(EXPORTER_URL))
         self.engine.register_analyzer(CpuUsageAnalyzer())
@@ -146,6 +158,15 @@ class MonitoringDashboardApp:
     def mainloop(self):
         self.root.mainloop()
         self.engine.stop()
+
+
+def blend_color(fg, bg, alpha):
+    """fg, bg: (r, g, b), alpha: 0~1"""
+    return tuple(int(fg[i] * alpha + bg[i] * (1 - alpha)) for i in range(3))
+
+
+def rgb_to_hex(rgb):
+    return "#%02x%02x%02x" % rgb
 
 
 def main():
