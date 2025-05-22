@@ -103,7 +103,7 @@ class MetricEngine:
         :param end_time: 结束时间（时间戳），None表示当前时间
         :param labels: 按哪些labels过滤，None表示不过滤
         """
-        if not self.history or metric_name not in self.history[-1][1]:
+        if not self.history:
             return None
 
         if end_time is None:

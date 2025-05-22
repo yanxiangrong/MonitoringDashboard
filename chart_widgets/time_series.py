@@ -7,14 +7,15 @@ class TimeSeries(tk.Canvas):
     def __init__(self, master=None, **kwargs):
         self.outline = kwargs.pop("outline", "steelblue")
         self.title = kwargs.pop("title", "")
-        self.value_text = kwargs.pop("value_text", "")
+        self.decimal_places = kwargs.pop("decimal_places", 1)
+        self.unit = kwargs.pop("unit", "%")
+        self.max_value = kwargs.pop("max_value", 100)
+        self.min_value = kwargs.pop("min_value", 0)
         kwargs |= {
             "highlightthickness": 0,
         }
         super().__init__(master, **kwargs)
         self.values: list[tuple[float, float]] = []
-        self.max_value = 100
-        self.min_value = 0
         self.start_time = 0
         self.end_time = 0
         self.fill = rgb_to_hex(
@@ -27,17 +28,14 @@ class TimeSeries(tk.Canvas):
         self.after_idle(self.draw_chart)
 
     def update_values(
-        self,
-        values: list[tuple[float, float]],
-        start_time: float,
-        end_time: float,
+            self,
+            values: list[tuple[float, float]],
+            start_time: float,
+            end_time: float,
     ):
         self.values = values
         self.start_time = start_time
         self.end_time = end_time
-
-    def update_value_text(self, value_text: str):
-        self.value_text = value_text
 
     def draw_chart(self):
         self.delete("all")
@@ -77,16 +75,28 @@ class TimeSeries(tk.Canvas):
             # 构造多边形点序列（首尾加底边）
             if len(points) >= 2:
                 poly_points = (
-                    [(points[0][0], y0 + h - 1)]
-                    + points
-                    + [(points[-1][0], y0 + h - 1)]
+                        [(points[0][0], y0 + h - 1)]
+                        + points
+                        + [(points[-1][0], y0 + h - 1)]
                 )
                 # 转为一维坐标序列
                 poly_coords = [coord for point in poly_points for coord in point]
                 self.create_polygon(
                     poly_coords, fill=self.fill, outline=self.outline, width=1
                 )
-
+        else:
+            text = "No Data"
+            font_size_h = int(h * 0.2)
+            max_char_width = 0.6
+            font_size_w = int(w * 0.8 / (len(text) * max_char_width))
+            font_size = max(12, min(font_size_h, font_size_w))
+            self.create_text(
+                x0 + w // 2,
+                y0 + h // 2,
+                text=text,
+                fill="gray",
+                font=("Arial", font_size, "bold")
+            )
         # 画边框
         self.create_rectangle(
             x0, y0, x0 + w - 1, y0 + h - 1, outline="dimgray", width=1
@@ -101,10 +111,13 @@ class TimeSeries(tk.Canvas):
                 anchor="nw",
             )
         # 画数值
-        if self.value_text:
-            self.create_text(
-                x0 + w - 5,
-                y0 + 5,
-                text=self.value_text,
-                anchor="ne",
-            )
+        if self.values and self.values[-1][0] == self.end_time:
+            value_text = f"{self.values[-1][1]:.{self.decimal_places}f}{self.unit}"
+        else:
+            value_text = "No Data"
+        self.create_text(
+            x0 + w - 5,
+            y0 + 5,
+            text=value_text,
+            anchor="ne",
+        )

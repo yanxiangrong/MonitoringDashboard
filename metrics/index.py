@@ -16,7 +16,7 @@ def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:
 
 
 def filter_by_labels(
-    samples: Iterable[Sample], labels: dict[str, str] | None = None
+        samples: Iterable[Sample], labels: dict[str, str] | None = None
 ) -> Iterable[Sample]:
     """
     过滤样本
@@ -35,9 +35,9 @@ AggType = Literal["avg", "sum", "max", "min", "count"]
 
 
 def aggregate_by(
-    samples: Iterable[Sample],
-    agg: AggType = "avg",
-    labels: list[str] | None = None,
+        samples: Iterable[Sample],
+        agg: AggType = "avg",
+        labels: list[str] | None = None,
 ) -> Iterable[Sample]:
     """
     对样本值做聚合分析
@@ -138,9 +138,9 @@ def group_samples_by_time(samples: Iterable[Sample]) -> dict[float, list[Sample]
 
 
 def get_value_from_metric(
-    metric: Metric,
-    filter_labels: dict[str, str] | None = None,
-    agg: AggType = "avg",
+        metric: Metric,
+        filter_labels: dict[str, str] | None = None,
+        agg: AggType = "avg",
 ) -> list[tuple[float, float]]:
     """
     从指标中获取值
@@ -149,6 +149,9 @@ def get_value_from_metric(
     :param agg: 聚合方式
     :return: 指标值
     """
+    if not metric:
+        return []
+
     filtered = filter_by_labels(metric.samples, filter_labels)
     grouped_samples = group_samples_by_time(filtered)
     grouped_values: dict[float, float] = {}
