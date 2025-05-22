@@ -7,7 +7,7 @@ from typing import Callable, TypeAlias, Deque
 from prometheus_client import CollectorRegistry, Metric
 
 from metrics.analyze import MetricAnalyzer
-from metrics.index import filter_by, build_metric_map
+from metrics.index import filter_by_labels, build_metric_map
 
 # 回调类型：metric, labels, scrape_time
 MetricCallback: TypeAlias = Callable[[], None]
@@ -86,7 +86,7 @@ class MetricEngine:
         filed_metric = Metric(
             metric.name, metric.documentation, metric.type, metric.unit
         )
-        filed_metric.samples = list(filter_by(metric.samples, labels=labels))
+        filed_metric.samples = list(filter_by_labels(metric.samples, labels=labels))
         return filed_metric
 
     def get_metric_range(
@@ -126,7 +126,9 @@ class MetricEngine:
             if labels is None:
                 filed_metric.samples += metric.samples
                 continue
-            filed_metric.samples += list(filter_by(metric.samples, labels=labels))
+            filed_metric.samples += list(
+                filter_by_labels(metric.samples, labels=labels)
+            )
         return filed_metric
 
     def get_last_scrape_time(self) -> float | None:

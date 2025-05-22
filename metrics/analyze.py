@@ -100,9 +100,9 @@ class CpuUsageAnalyzer(MetricAnalyzer):
         return usages_rate
 
 
-class MemoryTrendAnalyzer(MetricAnalyzer):
+class MemoryUsageAnalyzer(MetricAnalyzer):
     """
-    分析内存使用率趋势
+    分析内存使用率
     """
 
     def analyze(
@@ -137,3 +137,68 @@ class MemoryTrendAnalyzer(MetricAnalyzer):
         )
 
         yield new_metric
+
+
+class PhysicalDiskActiveTimeAnalyzer(MetricAnalyzer):
+    """
+    分析物理磁盘活动时间
+    """
+
+    def __init__(self):
+        self.last_disk_counters: dict[tuple[str, str], float] = {}
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        计算磁盘IO使用率（按活动时间占比），返回新的 Metric。
+        """
+        # 1. 收集磁盘指标
+        idle_metric = metrics.get("windows_physical_disk_idle_seconds_total")
+        read_metric = metrics.get("windows_physical_disk_read_seconds_total")
+        write_metric = metrics.get("windows_physical_disk_write_seconds_total")
+        if not idle_metric or not read_metric or not write_metric:
+            return
+
+        values: dict[str, dict[str, float]] = defaultdict(dict)
+        for sample in idle_metric.samples:
+            values[sample.labels.get("disk")]["idle"] = float(sample.value)
+        for sample in read_metric.samples:
+            values[sample.labels.get("disk")]["read"] = float(sample.value)
+        for sample in write_metric.samples:
+            values[sample.labels.get("disk")]["write"] = float(sample.value)
+
+        # 2. 遍历所有磁盘
+        for disk, sample in values.items():
+
+            # 3. 计算采集间隔内的增量（需有历史数据，假设你有 self.last_disk_counters）
+            delta_idle = sample["idle"] - self.last_disk_counters.get(
+                ("idle", disk), sample["idle"]
+            )
+            delta_read = sample["read"] - self.last_disk_counters.get(
+                ("read", disk), sample["read"]
+            )
+            delta_write = sample["write"] - self.last_disk_counters.get(
+                ("write", disk), sample["write"]
+            )
+            total = delta_idle + delta_read + delta_write
+            io_util = (delta_read + delta_write) / total * 100 if total > 0 else 0.0
+
+            # 4. 返回新的指标
+            new_metric = Metric(
+                "disk_io_util_percent", "Disk IO Utilization Percentage", "gauge"
+            )
+            new_metric.add_sample(
+                "disk_io_util_percent",
+                {"disk": disk},
+                value=io_util,
+                timestamp=scrape_time,
+            )
+            yield new_metric
+
+            # 5. 更新历史
+            self.last_disk_counters = {
+                ("idle", disk): sample["idle"],
+                ("read", disk): sample["read"],
+                ("write", disk): sample["write"],
+            }

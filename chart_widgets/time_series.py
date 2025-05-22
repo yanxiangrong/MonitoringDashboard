@@ -54,7 +54,7 @@ class TimeSeries(tk.Canvas):
         dt = self.end_time - self.start_time
         offset = self.end_time % (dt / 10) if dt > 0 else 0
         for i in range(0, 10):
-            x = int(((i + 1) / 10 - offset / dt if dt > 0 else 0) * w) + x0
+            x = int(((i + 1) / 10 - (offset / dt if dt > 0 else 0)) * w) + x0
             self.create_line(x, y0, x, y0 + h - 1, fill="lightgray", dash=(2, 2))
             if i > 0:
                 y = int(i * h / 10) + y0
@@ -66,13 +66,13 @@ class TimeSeries(tk.Canvas):
             points = []
             for ts, val in self.values:
                 x = int((ts - self.start_time) * w / dt) + x0
-                y = (
-                    int(
-                        h
-                        - (val - self.min_value) * h / (self.max_value - self.min_value)
-                    )
-                    + y0
+                norm = (
+                    (val - self.min_value) / (self.max_value - self.min_value)
+                    if self.max_value > self.min_value
+                    else 0
                 )
+                y = int(h - norm * h + y0)
+
                 points.append((x, y))
             # 构造多边形点序列（首尾加底边）
             if len(points) >= 2:

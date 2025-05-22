@@ -15,7 +15,7 @@ def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:
     return {m.name: m for m in metrics}
 
 
-def filter_by(
+def filter_by_labels(
     samples: Iterable[Sample], labels: dict[str, str] | None = None
 ) -> Iterable[Sample]:
     """
@@ -85,9 +85,7 @@ def aggregate_by(
         yield Sample(name, group_labels, agg_value, timestamp)
 
 
-def sum_by(
-    samples: Iterable[Sample], labels: dict[str, str] = None
-) -> Iterable[Sample]:
+def sum_by(samples: Iterable[Sample], labels: list[str] = None) -> Iterable[Sample]:
     """
     对样本值做求和
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
@@ -95,9 +93,7 @@ def sum_by(
     return aggregate_by(samples, "sum", labels)
 
 
-def avg_by(
-    samples: Iterable[Sample], labels: dict[str, str] = None
-) -> Iterable[Sample]:
+def avg_by(samples: Iterable[Sample], labels: list[str] = None) -> Iterable[Sample]:
     """
     对样本值做平均值
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
@@ -105,9 +101,7 @@ def avg_by(
     return aggregate_by(samples, "avg", labels)
 
 
-def max_by(
-    samples: Iterable[Sample], labels: dict[str, str] = None
-) -> Iterable[Sample]:
+def max_by(samples: Iterable[Sample], labels: list[str] = None) -> Iterable[Sample]:
     """
     对样本值做最大值
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
@@ -115,9 +109,7 @@ def max_by(
     return aggregate_by(samples, "max", labels)
 
 
-def min_by(
-    samples: Iterable[Sample], labels: dict[str, str] = None
-) -> Iterable[Sample]:
+def min_by(samples: Iterable[Sample], labels: list[str] = None) -> Iterable[Sample]:
     """
     对样本值做最小值
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
@@ -125,9 +117,7 @@ def min_by(
     return aggregate_by(samples, "min", labels)
 
 
-def count_by(
-    samples: Iterable[Sample], labels: dict[str, str] = None
-) -> Iterable[Sample]:
+def count_by(samples: Iterable[Sample], labels: list[str] = None) -> Iterable[Sample]:
     """
     对样本值做计数
     labels: 按哪些labels分组聚合，None表示全部聚合为一组
@@ -159,7 +149,7 @@ def get_value_from_metric(
     :param agg: 聚合方式
     :return: 指标值
     """
-    filtered = filter_by(metric.samples, filter_labels)
+    filtered = filter_by_labels(metric.samples, filter_labels)
     grouped_samples = group_samples_by_time(filtered)
     grouped_values: dict[float, float] = {}
     for timestamp, samples in grouped_samples.items():
