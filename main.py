@@ -166,17 +166,22 @@ class MonitoringDashboardApp:
             self.cpu_history, self.scrape_time - 60, self.scrape_time
         )
         self.cpu_chart.update_value_text(f"{self.cpu_history[-1][1]:.1f}%")
-        self.root.after_idle(self.cpu_chart.draw_chart)
+
         # 绘制内存使用率图表
         self.memory_chart.update_values(
             self.memory_history, self.scrape_time - 60, self.scrape_time
         )
         self.memory_chart.update_value_text(f"{self.memory_history[-1][1]:.1f}%")
-        self.root.after_idle(self.memory_chart.draw_chart)
+
+    def draw_charts(self):
+        # 更新 UI 的逻辑
+        self.cpu_chart.draw_chart()
+        self.memory_chart.draw_chart()
 
     def refresh_ui(self):
         # 每秒刷新一次
         self.update_metrics()
+        self.root.after_idle(self.draw_charts)
 
     def mainloop(self):
         self.root.mainloop()
