@@ -1,3 +1,5 @@
+import math
+
 from chart_widgets.chart import Chart
 from chart_widgets.utils import rgb_to_hex, blend_color
 
@@ -10,6 +12,7 @@ class TimeSeries(Chart):
         self.unit = kwargs.pop("unit", "%")
         self.max_value = kwargs.pop("max_value", 100)
         self.min_value = kwargs.pop("min_value", 0)
+        self.log_scale = kwargs.pop("log_scale", False)
 
         super().__init__(master, **kwargs)
 
@@ -71,11 +74,17 @@ class TimeSeries(Chart):
             points = []
             for ts, val in self.values:
                 x = int((ts - self.start_time) * content_w / dt) + content_x
-                norm = (
-                    (val - self.min_value) / (self.max_value - self.min_value)
-                    if self.max_value > self.min_value
-                    else 0
-                )
+                if self.log_scale:
+                    c = 0.1
+                    norm = (math.log10(val + c) - math.log10(self.min_value + c)) / (
+                        math.log10(self.max_value + c) - math.log10(self.min_value + c)
+                    )
+                else:
+                    norm = (
+                        (val - self.min_value) / (self.max_value - self.min_value)
+                        if self.max_value > self.min_value
+                        else 0
+                    )
                 y = int(content_h - norm * content_h + content_y)
 
                 points.append((x, y))

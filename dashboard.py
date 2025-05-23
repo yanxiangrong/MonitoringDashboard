@@ -51,6 +51,8 @@ class MonitoringDashboardApp:
             title="Net Rx Speed",
             unit=" Mbps",
             decimal_places=2,
+            max_value=1000,
+            log_scale=True,
         )
         self.add_chart(self.network_chart_received)
         self.network_chart_sent = TimeSeries(
@@ -59,6 +61,8 @@ class MonitoringDashboardApp:
             title="Net Tx Speed",
             unit=" Mbps",
             decimal_places=2,
+            max_value=1000,
+            log_scale=True,
         )
         self.add_chart(self.network_chart_sent)
         self.logical_disk_usage_chart = DiskProgressBars(root, title="Disk Usage")
