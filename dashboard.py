@@ -2,6 +2,7 @@ import tkinter as tk
 
 from chart_widgets.chart import Chart, EmptyChart
 from chart_widgets.heatmap import Heatmap
+from chart_widgets.progress_bar import DiskProgressBars
 from chart_widgets.time_series import TimeSeries
 from metrics.analyze import (
     CpuUsageAnalyzer,
@@ -9,6 +10,7 @@ from metrics.analyze import (
     PhysicalDiskActiveTimeAnalyzer,
     MemoryCommitAnalyzer,
     NetworkSpeedAnalyzerV2,
+    LogicalDiskSizeAnalyzer,
 )
 from metrics.collect import RemoteMetricsCollector
 from metrics.engine import MetricEngine
@@ -44,13 +46,23 @@ class MonitoringDashboardApp:
         if len(self.chart_list) % 2 == 1:
             self.add_chart(EmptyChart())
         self.network_chart_received = TimeSeries(
-            root, outline="saddlebrown", title="Net Rx Speed", unit=" Mbps"
+            root,
+            outline="saddlebrown",
+            title="Net Rx Speed",
+            unit=" Mbps",
+            decimal_places=2,
         )
         self.add_chart(self.network_chart_received)
         self.network_chart_sent = TimeSeries(
-            root, outline="saddlebrown", title="Net Tx Speed", unit=" Mbps"
+            root,
+            outline="saddlebrown",
+            title="Net Tx Speed",
+            unit=" Mbps",
+            decimal_places=2,
         )
         self.add_chart(self.network_chart_sent)
+        self.logical_disk_usage_chart = DiskProgressBars(root, title="Disk Usage")
+        self.add_chart(self.logical_disk_usage_chart)
 
         self.engine = MetricEngine(interval=1, history_size=600)
         self.engine.register_collector(RemoteMetricsCollector(exporter_url))
@@ -59,6 +71,7 @@ class MonitoringDashboardApp:
         self.engine.register_analyzer(PhysicalDiskActiveTimeAnalyzer())
         self.engine.register_analyzer(NetworkSpeedAnalyzerV2())
         self.engine.register_analyzer(MemoryCommitAnalyzer())
+        self.engine.register_analyzer(LogicalDiskSizeAnalyzer())
 
         # 用于保存历史数据，便于后续画图
         self.scrape_time = 0
@@ -70,6 +83,7 @@ class MonitoringDashboardApp:
         self.network_history_sent: list[tuple[float, float]] = []
         self.cpu_heatmap_history: list[tuple[float, list[float]]] = []
         self.memory_commit_history: list[tuple[float, float]] = []
+        self.logical_disk_space_values: list[tuple[str, float, float]] = []
 
         # 启动引擎
         self.engine.register_on_update(self.refresh_ui)
@@ -107,6 +121,8 @@ class MonitoringDashboardApp:
         network_usage_metrics = self.engine.get_metric_range(
             "network_speed_mbps", scrape_time - 61, scrape_time
         )
+        logical_disk_total_metrics = self.engine.get_metric("logical_disk_size_bytes")
+        logical_disk_free_metrics = self.engine.get_metric("logical_disk_free_bytes")
 
         self.scrape_time = scrape_time
         self.cpu_history = get_value_from_metric(cpu_usage_metrics)
@@ -141,6 +157,30 @@ class MonitoringDashboardApp:
         self.network_chart_sent.update_values(
             self.network_history_sent, self.scrape_time - 60, self.scrape_time
         )
+
+        logical_disk_space_values_map: dict[str, tuple[float, float]] = {}
+        if logical_disk_total_metrics:
+            for disk in logical_disk_total_metrics.samples:
+                disk_name = disk.labels.get("volume", "")
+                if not disk_name:
+                    continue
+                logical_disk_space_values_map[disk_name] = (0, disk.value)
+            for disk in logical_disk_free_metrics.samples:
+                disk_name = disk.labels.get("volume", "")
+                if disk_name not in logical_disk_space_values_map:
+                    continue
+                logical_disk_space_values_map[disk_name] = (
+                    disk.value,
+                    logical_disk_space_values_map[disk_name][1],
+                )
+            self.logical_disk_space_values = [
+                (disk_name, free_space, total_space)
+                for disk_name, (
+                    free_space,
+                    total_space,
+                ) in logical_disk_space_values_map.items()
+            ]
+            self.logical_disk_usage_chart.update_values(self.logical_disk_space_values)
 
         heatmap_map = get_value_from_metric_group_by(
             cpu_usage_metrics,

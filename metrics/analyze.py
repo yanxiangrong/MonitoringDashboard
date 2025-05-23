@@ -1,3 +1,4 @@
+import re
 import statistics
 from collections import defaultdict
 from typing import Iterable
@@ -359,3 +360,67 @@ class NetworkSpeedAnalyzerV2(MetricAnalyzer):
         )
         # 3. 返回新的指标
         yield network_speed_metric
+
+
+class LogicalDiskSizeAnalyzer(MetricAnalyzer):
+    """
+    分析逻辑磁盘大小
+    """
+
+    def __init__(self):
+        self.filter_pattern = re.compile(r"^[A-Z]:$")
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        计算逻辑磁盘大小，返回新的 Metric。
+        """
+        # 1. 收集逻辑磁盘指标
+        logical_disk_free_metric = metrics.get("windows_logical_disk_free_bytes")
+        windows_logical_disk_size_metric = metrics.get(
+            "windows_logical_disk_size_bytes"
+        )
+        if not logical_disk_free_metric or not windows_logical_disk_size_metric:
+            return
+        # 2. 计算逻辑磁盘大小
+        logical_disk_size: dict[str, float] = {}
+        for sample in windows_logical_disk_size_metric.samples:
+            volume = sample.labels.get("volume")
+            if self.filter_pattern.match(volume):
+                logical_disk_size[volume] = float(sample.value)
+        logical_disk_free: dict[str, float] = {}
+        for sample in logical_disk_free_metric.samples:
+            volume = sample.labels.get("volume")
+            if volume in logical_disk_size:
+                logical_disk_free[volume] = float(sample.value)
+
+        for volume in logical_disk_size:
+            if volume not in logical_disk_free:
+                logical_disk_free[volume] = 0.0
+
+        # 3. 返回新的指标
+        size_metric = Metric(
+            "logical_disk_size_bytes", "Logical Disk Size in Bytes", "gauge"
+        )
+        for volume, size in logical_disk_size.items():
+            free_space = logical_disk_free.get(volume, 0)
+            size_metric.add_sample(
+                "logical_disk_size_bytes",
+                {"volume": volume},
+                value=size - free_space,
+                timestamp=scrape_time,
+            )
+        yield size_metric
+
+        free_space_metric = Metric(
+            "logical_disk_free_bytes", "Logical Disk Free Space in Bytes", "gauge"
+        )
+        for volume, free_space in logical_disk_free.items():
+            free_space_metric.add_sample(
+                "logical_disk_free_bytes",
+                {"volume": volume},
+                value=free_space,
+                timestamp=scrape_time,
+            )
+        yield free_space_metric
