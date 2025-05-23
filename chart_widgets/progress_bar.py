@@ -198,6 +198,8 @@ class DiskProgressBars(Chart):
                     self.disk_labels[idx].config(text=disk_name)
                     self.disk_bars[idx].update_values(value)
 
+                self.disk_bars[idx].draw_chart()
+
             if len(self.disk_bars) > len(self.disk_data):
                 for i in range(len(self.disk_data), len(self.disk_bars)):
                     self.disk_bars[i].grid_forget()

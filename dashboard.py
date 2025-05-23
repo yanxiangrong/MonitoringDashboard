@@ -99,8 +99,6 @@ class MonitoringDashboardApp:
         """
         添加图表到指定的行和列
         :param chart: 要添加的图表
-        :param row: 行索引
-        :param column: 列索引
         """
         row = len(self.chart_list) % 2
         column = len(self.chart_list) // 2
