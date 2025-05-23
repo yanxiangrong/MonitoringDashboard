@@ -252,3 +252,110 @@ class NetworkSpeedAnalyzer(MetricAnalyzer):
 
         # 3. 返回新的指标
         yield network_speed_metric
+
+
+class MemoryCommitAnalyzer(MetricAnalyzer):
+    """
+    分析内存提交率
+    """
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        计算内存提交率，返回新的 Metric。
+        """
+        # 1. 收集内存指标
+        memory_commit_metric = metrics.get("windows_memory_committed_bytes")
+        memory_commit_limit_metric = metrics.get("windows_memory_commit_limit")
+        if not memory_commit_metric or not memory_commit_limit_metric:
+            return
+        # 2. 计算内存提交率
+        memory_commit = next(iter(avg_by(memory_commit_metric.samples))).value
+        memory_commit_limit = next(
+            iter(avg_by(memory_commit_limit_metric.samples))
+        ).value
+        memory_commit_rate = (
+            memory_commit / memory_commit_limit * 100
+            if memory_commit_limit > 0
+            else 0.0
+        )
+        # 3. 返回新的指标
+        new_metric = Metric(
+            "memory_commit_rate_percent", "Memory Commit Rate Percentage", "gauge"
+        )
+        new_metric.add_sample(
+            "memory_commit_rate_percent",
+            {},
+            value=memory_commit_rate,
+            timestamp=scrape_time,
+        )
+        yield new_metric
+
+
+class NetworkSpeedAnalyzerV2(MetricAnalyzer):
+    """
+    分析网络速度
+    """
+
+    def __init__(self):
+        self.last_network_counters: dict[str, float] = {}
+        self.last_network_time: float = 0.0
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        计算网络速度（区分收发），返回新的 Metric。
+        """
+        # 1. 收集网络指标
+        network_received_metric = metrics.get("windows_net_bytes_received")
+        network_sent_metric = metrics.get("windows_net_bytes_sent")
+        if not network_received_metric or not network_sent_metric:
+            return
+        # 2. 计算网络速度
+        network_received_counters = next(
+            iter(sum_by(network_received_metric.samples))
+        ).value
+        network_sent_counters = next(iter(sum_by(network_sent_metric.samples))).value
+        delta_time = (
+            scrape_time - self.last_network_time if self.last_network_time else 0.0
+        )
+        network_speed_received = (
+            (network_received_counters - self.last_network_counters.get("received", 0))
+            / delta_time
+            * 8
+            / 1024
+            / 1024
+            if delta_time > 0
+            else 0.0
+        )
+        network_speed_sent = (
+            (network_sent_counters - self.last_network_counters.get("sent", 0))
+            / delta_time
+            * 8
+            / 1024
+            / 1024
+            if delta_time > 0
+            else 0.0
+        )
+        self.last_network_counters["received"] = network_received_counters
+        self.last_network_counters["sent"] = network_sent_counters
+        self.last_network_time = scrape_time
+        network_speed_metric = Metric(
+            "network_speed_mbps", "Network Speed in Mbps", "gauge"
+        )
+        network_speed_metric.add_sample(
+            "network_speed_mbps",
+            {"direction": "received"},
+            value=network_speed_received,
+            timestamp=scrape_time,
+        )
+        network_speed_metric.add_sample(
+            "network_speed_mbps",
+            {"direction": "sent"},
+            value=network_speed_sent,
+            timestamp=scrape_time,
+        )
+        # 3. 返回新的指标
+        yield network_speed_metric

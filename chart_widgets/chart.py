@@ -60,3 +60,8 @@ class Chart(tk.Canvas):
 
     def draw_clear(self):
         self.delete("all")
+
+
+class EmptyChart(Chart):
+    def draw_chart(self):
+        pass
