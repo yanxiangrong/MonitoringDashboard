@@ -1,9 +1,8 @@
-import tkinter as tk
-
+from chart_widgets.chart import Chart
 from chart_widgets.utils import rgb_to_hex, blend_color
 
 
-class TimeSeries(tk.Canvas):
+class TimeSeries(Chart):
     def __init__(self, master=None, **kwargs):
         self.outline = kwargs.pop("outline", "steelblue")
         self.title = kwargs.pop("title", "")
@@ -11,10 +10,9 @@ class TimeSeries(tk.Canvas):
         self.unit = kwargs.pop("unit", "%")
         self.max_value = kwargs.pop("max_value", 100)
         self.min_value = kwargs.pop("min_value", 0)
-        kwargs |= {
-            "highlightthickness": 0,
-        }
+
         super().__init__(master, **kwargs)
+
         self.values: list[tuple[float, float]] = []
         self.start_time = 0
         self.end_time = 0
@@ -22,62 +20,71 @@ class TimeSeries(tk.Canvas):
             blend_color(self.winfo_rgb(self.outline), self.winfo_rgb(self["bg"]), 0.25)
         )
 
-        self.bind("<Configure>", self.on_configure)
-
-    def on_configure(self, _event):
-        self.after_idle(self.draw_chart)
-
     def update_values(
-            self,
-            values: list[tuple[float, float]],
-            start_time: float,
-            end_time: float,
+        self,
+        values: list[tuple[float, float]],
+        start_time: float,
+        end_time: float,
     ):
         self.values = values
         self.start_time = start_time
         self.end_time = end_time
 
     def draw_chart(self):
-        self.delete("all")
-        # 画图逻辑
-        border = int(self["borderwidth"])
-        highlight = int(self["highlightthickness"])
-        x0 = border + highlight
-        y0 = border + highlight
-        w, h = self.winfo_width() - 2 * x0, self.winfo_height() - 2 * y0
-        if w <= 1 or h <= 1:
+        content_x, content_y, content_w, content_h = self.content_rect
+
+        if content_w <= 1 or content_h <= 1:
             return
+
+        self.draw_clear()
 
         # 画内部网格
         dt = self.end_time - self.start_time
         offset = self.end_time % (dt / 10) if dt > 0 else 0
         for i in range(0, 10):
-            x = int(((i + 1) / 10 - (offset / dt if dt > 0 else 0)) * w) + x0
-            self.create_line(x, y0, x, y0 + h - 1, fill="lightgray", dash=(2, 2))
+            x = (
+                int(((i + 1) / 10 - (offset / dt if dt > 0 else 0)) * content_w)
+                + content_x
+            )
+            self.create_line(
+                x,
+                content_y,
+                x,
+                content_y + content_h - 1,
+                fill="lightgray",
+                dash=(2, 2),
+            )
             if i > 0:
-                y = int(i * h / 10) + y0
-                self.create_line(x0, y, x0 + w - 1, y, fill="lightgray", dash=(2, 2))
+                y = int(i * content_h / 10) + content_y
+                self.create_line(
+                    content_x,
+                    y,
+                    content_x + content_w - 1,
+                    y,
+                    fill="lightgray",
+                    dash=(2, 2),
+                )
 
         # 画填充折线（面积图）
-        if self.values:
+        if self.values and self.values[-1][0] > self.start_time:
             # 计算所有点
             points = []
             for ts, val in self.values:
-                x = int((ts - self.start_time) * w / dt) + x0
+                x = int((ts - self.start_time) * content_w / dt) + content_x
                 norm = (
                     (val - self.min_value) / (self.max_value - self.min_value)
                     if self.max_value > self.min_value
                     else 0
                 )
-                y = int(h - norm * h + y0)
+                y = int(content_h - norm * content_h + content_y)
 
                 points.append((x, y))
             # 构造多边形点序列（首尾加底边）
             if len(points) >= 2:
                 poly_points = (
-                        [(points[0][0], y0 + h - 1)]
-                        + points
-                        + [(points[-1][0], y0 + h - 1)]
+                    [(points[0][0], content_y + content_h - 1)]
+                    + points
+                    + [(points[-1][0], content_y + content_h - 1)]
                 )
                 # 转为一维坐标序列
                 poly_coords = [coord for point in poly_points for coord in point]
@@ -85,28 +92,16 @@ class TimeSeries(tk.Canvas):
                     poly_coords, fill=self.fill, outline=self.outline, width=1
                 )
         else:
-            text = "No Data"
-            font_size_h = int(h * 0.2)
-            max_char_width = 0.6
-            font_size_w = int(w * 0.8 / (len(text) * max_char_width))
-            font_size = max(12, min(font_size_h, font_size_w))
-            self.create_text(
-                x0 + w // 2,
-                y0 + h // 2,
-                text=text,
-                fill="gray",
-                font=("Arial", font_size, "bold")
-            )
+            self.draw_no_data()
+
         # 画边框
-        self.create_rectangle(
-            x0, y0, x0 + w - 1, y0 + h - 1, outline="dimgray", width=1
-        )
+        self.draw_border()
 
         # 画标题
         if self.title:
             self.create_text(
-                x0 + 5,
-                y0 + 5,
+                content_x + 5,
+                content_y + 5,
                 text=self.title,
                 anchor="nw",
             )
@@ -116,8 +111,8 @@ class TimeSeries(tk.Canvas):
         else:
             value_text = "No Data"
         self.create_text(
-            x0 + w - 5,
-            y0 + 5,
+            content_x + content_w - 5,
+            content_y + 5,
             text=value_text,
             anchor="ne",
         )
