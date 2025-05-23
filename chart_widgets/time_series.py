@@ -75,7 +75,7 @@ class TimeSeries(Chart):
             for ts, val in self.values:
                 x = int((ts - self.start_time) * content_w / dt) + content_x
                 if self.log_scale:
-                    c = 0.1
+                    c = 1
                     norm = (math.log10(val + c) - math.log10(self.min_value + c)) / (
                         math.log10(self.max_value + c) - math.log10(self.min_value + c)
                     )

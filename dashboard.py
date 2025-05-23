@@ -25,6 +25,8 @@ class MonitoringDashboardApp:
         self.root.geometry(f"{self.w}x{self.h}")
         self.root.config(padx=2, pady=2)
 
+        self.add_right_click_exit_menu()
+
         self.chart_list: list[Chart] = []
 
         self.cpu_chart = TimeSeries(root, outline="steelblue", title="CPU Usage")
@@ -211,6 +213,18 @@ class MonitoringDashboardApp:
     def refresh_ui(self):
         self.update_metrics()
         self.root.after_idle(self.draw_charts)
+
+    def add_right_click_exit_menu(self):
+        # 创建只含有“退出”选项的菜单
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="退出", command=self.root.quit)
+
+        # 右键弹出菜单的回调
+        def show_menu(event):
+            menu.post(event.x_root, event.y_root)
+
+        # 绑定右键事件（Windows/Linux）
+        self.root.bind("<Button-3>", show_menu)
 
     def mainloop(self):
         self.root.mainloop()

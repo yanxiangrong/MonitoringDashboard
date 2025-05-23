@@ -408,7 +408,7 @@ class LogicalDiskSizeAnalyzer(MetricAnalyzer):
             size_metric.add_sample(
                 "logical_disk_size_bytes",
                 {"volume": volume},
-                value=size - free_space,
+                value=size,
                 timestamp=scrape_time,
             )
         yield size_metric
