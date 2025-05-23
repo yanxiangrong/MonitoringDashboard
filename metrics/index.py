@@ -16,7 +16,7 @@ def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:
 
 
 def filter_by_labels(
-        samples: Iterable[Sample], labels: dict[str, str] | None = None
+    samples: Iterable[Sample], labels: dict[str, str] | None = None
 ) -> Iterable[Sample]:
     """
     过滤样本
@@ -35,9 +35,9 @@ AggType = Literal["avg", "sum", "max", "min", "count"]
 
 
 def aggregate_by(
-        samples: Iterable[Sample],
-        agg: AggType = "avg",
-        labels: list[str] | None = None,
+    samples: Iterable[Sample],
+    agg: AggType = "avg",
+    labels: list[str] | None = None,
 ) -> Iterable[Sample]:
     """
     对样本值做聚合分析
@@ -138,9 +138,9 @@ def group_samples_by_time(samples: Iterable[Sample]) -> dict[float, list[Sample]
 
 
 def get_value_from_metric(
-        metric: Metric,
-        filter_labels: dict[str, str] | None = None,
-        agg: AggType = "avg",
+    metric: Metric,
+    filter_labels: dict[str, str] | None = None,
+    agg: AggType = "avg",
 ) -> list[tuple[float, float]]:
     """
     从指标中获取值
@@ -158,6 +158,39 @@ def get_value_from_metric(
     for timestamp, samples in grouped_samples.items():
         aggregated = next(iter(aggregate_by(samples, agg=agg)))
         grouped_values[timestamp] = aggregated.value
+
+    return [
+        (timestamp, grouped_values[timestamp])
+        for timestamp in sorted(grouped_values.keys())
+    ]
+
+
+def get_value_from_metric_group_by(
+    metric: Metric,
+    group_labels: list[str],
+    filter_labels: dict[str, str] | None = None,
+    agg: AggType = "avg",
+) -> list[tuple[float, dict[str, float]]]:
+    """
+    从指标中获取值
+    :param metric: 指标对象
+    :param group_labels: 分组标签
+    :param filter_labels: 过滤条件
+    :param agg: 聚合方式
+    :return: 指标值
+    """
+    if not metric:
+        return []
+
+    filtered = filter_by_labels(metric.samples, filter_labels)
+    grouped_samples = group_samples_by_time(filtered)
+    grouped_values: dict[float, dict[str, float]] = {}
+    for timestamp, samples in grouped_samples.items():
+        aggregated = aggregate_by(samples, agg=agg, labels=group_labels)
+        grouped_values[timestamp] = {
+            sample.labels.get(group_labels[0], ""): sample.value
+            for sample in aggregated
+        }
 
     return [
         (timestamp, grouped_values[timestamp])

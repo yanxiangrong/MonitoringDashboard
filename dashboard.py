@@ -1,4 +1,6 @@
 import tkinter as tk
+
+from chart_widgets.heatmap import Heatmap
 from chart_widgets.time_series import TimeSeries
 from metrics.analyze import (
     CpuUsageAnalyzer,
@@ -8,7 +10,7 @@ from metrics.analyze import (
 )
 from metrics.collect import RemoteMetricsCollector
 from metrics.engine import MetricEngine
-from metrics.index import get_value_from_metric
+from metrics.index import get_value_from_metric, get_value_from_metric_group_by
 
 
 class MonitoringDashboardApp:
@@ -35,6 +37,8 @@ class MonitoringDashboardApp:
             root, outline="saddlebrown", title="Network Speed", unit=" Mbps"
         )
         self.network_chart.grid(row=0, column=2, padx=2, pady=2, sticky="nsew")
+        self.cpu_heatmap_chart = Heatmap(root, title="CPUs Usage")
+        self.cpu_heatmap_chart.grid(row=1, column=2, padx=2, pady=2, sticky="nsew")
 
         # 设置行和列的权重
         root.grid_rowconfigure(0, weight=1)
@@ -51,12 +55,13 @@ class MonitoringDashboardApp:
         self.engine.register_analyzer(NetworkSpeedAnalyzer())
 
         # 用于保存历史数据，便于后续画图
+        self.scrape_time = 0
         self.cpu_history: list[tuple[float, float]] = []
         self.memory_history: list[tuple[float, float]] = []
         self.disk0_history: list[tuple[float, float]] = []
         self.disk1_history: list[tuple[float, float]] = []
         self.network_history: list[tuple[float, float]] = []
-        self.scrape_time = 0
+        self.cpu_heatmap_history: list[tuple[float, list[float]]] = []
 
         # 启动引擎
         self.engine.register_on_update(self.refresh_ui)
@@ -86,12 +91,8 @@ class MonitoringDashboardApp:
         self.memory_chart.update_values(
             self.memory_history, self.scrape_time - 60, self.scrape_time
         )
-        self.disk0_history = get_value_from_metric(
-            disk_usage_metrics, {"disk": "0"}
-        )
-        self.disk1_history = get_value_from_metric(
-            disk_usage_metrics, {"disk": "1"}
-        )
+        self.disk0_history = get_value_from_metric(disk_usage_metrics, {"disk": "0"})
+        self.disk1_history = get_value_from_metric(disk_usage_metrics, {"disk": "1"})
         self.disk0_chart.update_values(
             self.disk0_history, self.scrape_time - 60, self.scrape_time
         )
@@ -102,6 +103,23 @@ class MonitoringDashboardApp:
         self.network_chart.update_values(
             self.network_history, self.scrape_time - 60, self.scrape_time
         )
+        heatmap_map = get_value_from_metric_group_by(
+            cpu_usage_metrics,
+            ["core"],
+        )
+
+        # 处理 CPU 热力图数据
+        def sort_key(item):
+            x, y = map(int, item[0].split(","))
+            return (x + 1) * y
+
+        self.cpu_heatmap_history = [
+            (timestamp, [value for _, value in sorted(values.items(), key=sort_key)])
+            for timestamp, values in heatmap_map
+        ]
+        self.cpu_heatmap_chart.update_values(
+            self.cpu_heatmap_history, self.scrape_time - 60, self.scrape_time
+        )
 
     def draw_charts(self):
         self.cpu_chart.draw_chart()
@@ -109,6 +127,7 @@ class MonitoringDashboardApp:
         self.disk0_chart.draw_chart()
         self.disk1_chart.draw_chart()
         self.network_chart.draw_chart()
+        self.cpu_heatmap_chart.draw_chart()
 
     def refresh_ui(self):
         self.update_metrics()
