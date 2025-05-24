@@ -35,7 +35,7 @@ class Chart(tk.Canvas):
         content_x, content_y, content_w, content_h = self.content_rect
         text = "No Data"
         font_size_h = int(content_h * 0.2)
-        max_char_width = 0.6
+        max_char_width = 0.7
         font_size_w = int(content_w * 0.8 / (len(text) * max_char_width))
         font_size = max(12, min(font_size_h, font_size_w))
         self.create_text(
