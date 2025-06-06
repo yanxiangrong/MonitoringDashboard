@@ -22,6 +22,7 @@ def main():
     root = tk.Tk()
     if args.fullscreen:
         root.attributes("-fullscreen", True)
+        root.config(cursor="none")
     app = MonitoringDashboardApp(root, exporter_url=args.url)
     app.mainloop()
 

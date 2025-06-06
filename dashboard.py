@@ -34,10 +34,10 @@ class MonitoringDashboardApp:
         self.cpu_heatmap_chart = Heatmap(root, title="CPUs Usage")
         self.add_chart(self.cpu_heatmap_chart)
 
-        self.memory_chart = TimeSeries(root, outline="slateblue", title="Memory Usage")
+        self.memory_chart = TimeSeries(root, outline="slateblue", title="Mem Usage")
         self.add_chart(self.memory_chart)
         self.memory_commit_chart = TimeSeries(
-            root, outline="slateblue", title="Memory Commit"
+            root, outline="slateblue", title="Mem Commit"
         )
         self.add_chart(self.memory_commit_chart)
 
@@ -50,7 +50,7 @@ class MonitoringDashboardApp:
         self.network_chart_received = TimeSeries(
             root,
             outline="saddlebrown",
-            title="Net Rx Speed",
+            title="Net Rx",
             unit=" Mbps",
             decimal_places=2,
             max_value=1000,
@@ -60,7 +60,7 @@ class MonitoringDashboardApp:
         self.network_chart_sent = TimeSeries(
             root,
             outline="saddlebrown",
-            title="Net Tx Speed",
+            title="Net Tx",
             unit=" Mbps",
             decimal_places=2,
             max_value=1000,

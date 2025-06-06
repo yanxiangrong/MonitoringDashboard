@@ -167,13 +167,14 @@ class DiskProgressBars(Chart):
             for idx, (disk_name, free_space, total_space) in enumerate(self.disk_data):
                 percent = (total_space - free_space) / total_space * 100
                 value = round(percent)
-                disk_size = convert_bytes(total_space)
-                free_size = convert_bytes(free_space)
+                # disk_size = convert_bytes(total_space)
+                # free_size = convert_bytes(free_space)
+                disk_size = convert_bytes2(free_space, total_space)
 
                 if idx >= len(self.disk_bars):
                     disk_size_label = ttk.Label(
                         self.frame,
-                        text=f"{free_size} / {disk_size} ({percent:.3g}%)",
+                        text=f"{disk_size} ({percent:.3g}%)",
                     )
                     disk_size_label.grid(
                         row=row,
@@ -235,3 +236,23 @@ def convert_bytes(num: float) -> str:
             break
         num /= 1024.0
     return f"{num:.3g} {x}"
+
+
+def convert_bytes2(num1: float, num2: float) -> str:
+    """
+    Convert bytes to a human-readable format for two values.
+
+    Args:
+        num1: The first number of bytes.
+        num2: The second number of bytes.
+
+    Returns:
+        A string representing the size in a human-readable format.
+    """
+
+    for x in ["bytes", "KB", "MB", "GB", "TB", "PB", "EB"]:
+        if num1 < 1024.0 and num2 < 1024.0:
+            break
+        num1 /= 1024.0
+        num2 /= 1024.0
+    return f"{num1:.3g} / {num2:.3g} {x}"
