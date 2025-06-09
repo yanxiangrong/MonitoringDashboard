@@ -1,9 +1,8 @@
 import bisect
-import threading
 import time
 from collections import deque
-from threading import Thread
-from typing import Callable, Deque, Optional
+from threading import Thread, Event
+from typing import Callable, Optional, Deque
 
 from prometheus_client import CollectorRegistry, Metric
 
@@ -28,7 +27,7 @@ class MetricEngine:
         )
         self.history_size = history_size
         self.interval = interval
-        self._stop_event = threading.Event()
+        self._stop_event = Event()
         self.thread_name = "MetricEngineThread"
         self._thread = Thread(target=self._run, name=self.thread_name, daemon=True)
 

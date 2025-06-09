@@ -94,7 +94,7 @@ class MonitoringDashboardApp:
         self.memory_commit_history: list[tuple[float, float]] = []
         self.logical_disk_space_values: list[tuple[str, float, float]] = []
 
-        self.root.after(100, self.check_queue)
+        self.root.after_idle(self.check_queue)
 
         # 启动引擎
         self.engine.register_on_update(self.refresh_ui)
