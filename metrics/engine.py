@@ -2,6 +2,7 @@ import bisect
 import threading
 import time
 from collections import deque
+from threading import Thread
 from typing import Callable, Deque, Optional
 
 from prometheus_client import CollectorRegistry, Metric
@@ -28,7 +29,8 @@ class MetricEngine:
         self.history_size = history_size
         self.interval = interval
         self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True)
+        self.thread_name = "MetricEngineThread"
+        self._thread = Thread(target=self._run, name=self.thread_name, daemon=True)
 
     def register_collector(self, collector):
         """
@@ -60,7 +62,7 @@ class MetricEngine:
         """
         self._stop_event.clear()
         if not self._thread.is_alive():
-            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread = Thread(target=self._run, name=self.thread_name, daemon=True)
             self._thread.start()
 
     def stop(self):
@@ -112,7 +114,7 @@ class MetricEngine:
         keys = [x[0] for x in self.history]
         start_idx = bisect.bisect_left(keys, start_time)
         end_idx = len(self.history)
-        filed_metric: Metric | None = None
+        filed_metric: Optional[Metric] = None
         for i in range(start_idx, end_idx):
             scrape_time, metric_dict = self.history[i]
             if scrape_time < start_time or scrape_time > end_time:
