@@ -1,3 +1,4 @@
+import queue
 import tkinter as tk
 
 from chart_widgets.chart import Chart, EmptyChart
@@ -20,6 +21,8 @@ from metrics.index import get_value_from_metric, get_value_from_metric_group_by
 class MonitoringDashboardApp:
     def __init__(self, root: tk.Tk, exporter_url: str):
         self.root: tk.Tk = root
+        self.q = queue.Queue()
+
         self.root.title("MonitoringDashboard")
         self.w, self.h = 600, 400
         self.root.geometry(f"{self.w}x{self.h}")
@@ -90,6 +93,8 @@ class MonitoringDashboardApp:
         self.cpu_heatmap_history: list[tuple[float, list[float]]] = []
         self.memory_commit_history: list[tuple[float, float]] = []
         self.logical_disk_space_values: list[tuple[str, float, float]] = []
+
+        self.root.after(100, self.check_queue)
 
         # 启动引擎
         self.engine.register_on_update(self.refresh_ui)
@@ -210,7 +215,18 @@ class MonitoringDashboardApp:
 
     def refresh_ui(self):
         self.update_metrics()
-        self.root.after_idle(self.draw_charts)
+        self.q.put("refresh")
+        # self.root.after_idle(self.draw_charts)
+
+    def check_queue(self):
+        try:
+            while True:
+                msg = self.q.get_nowait()
+                if msg == "refresh":
+                    self.root.after_idle(self.draw_charts)
+        except queue.Empty:
+            pass
+        self.root.after(50, self.check_queue)
 
     def add_right_click_exit_menu(self):
         # 创建只含有“退出”选项的菜单

@@ -69,7 +69,7 @@ class TimeSeries(Chart):
                 )
 
         # 画填充折线（面积图）
-        if self.values and self.values[-1][0] > self.start_time:
+        if self.values and self.values[-1][0] > self.start_time and dt > 0:
             # 计算所有点
             points = []
             for ts, val in self.values:

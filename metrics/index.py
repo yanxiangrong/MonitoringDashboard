@@ -1,6 +1,6 @@
 import statistics
 from collections import defaultdict
-from typing import Iterable, Literal
+from typing import Iterable, Literal, Optional
 
 from prometheus_client import Metric
 from prometheus_client.samples import Sample
@@ -16,7 +16,7 @@ def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:
 
 
 def filter_by_labels(
-    samples: Iterable[Sample], labels: dict[str, str] | None = None
+    samples: Iterable[Sample], labels: Optional[dict[str, str]] = None
 ) -> Iterable[Sample]:
     """
     过滤样本
@@ -37,7 +37,7 @@ AggType = Literal["avg", "sum", "max", "min", "count"]
 def aggregate_by(
     samples: Iterable[Sample],
     agg: AggType = "avg",
-    labels: list[str] | None = None,
+    labels: Optional[list[str]] = None,
 ) -> Iterable[Sample]:
     """
     对样本值做聚合分析
@@ -139,7 +139,7 @@ def group_samples_by_time(samples: Iterable[Sample]) -> dict[float, list[Sample]
 
 def get_value_from_metric(
     metric: Metric,
-    filter_labels: dict[str, str] | None = None,
+    filter_labels: Optional[dict[str, str]] = None,
     agg: AggType = "avg",
 ) -> list[tuple[float, float]]:
     """
@@ -168,7 +168,7 @@ def get_value_from_metric(
 def get_value_from_metric_group_by(
     metric: Metric,
     group_labels: list[str],
-    filter_labels: dict[str, str] | None = None,
+    filter_labels: Optional[dict[str, str]] = None,
     agg: AggType = "avg",
 ) -> list[tuple[float, dict[str, float]]]:
     """

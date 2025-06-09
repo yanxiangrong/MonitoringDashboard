@@ -2,7 +2,7 @@ import bisect
 import threading
 import time
 from collections import deque
-from typing import Callable, TypeAlias, Deque
+from typing import Callable, Deque, Optional
 
 from prometheus_client import CollectorRegistry, Metric
 
@@ -10,7 +10,7 @@ from metrics.analyze import MetricAnalyzer
 from metrics.index import filter_by_labels, build_metric_map
 
 # 回调类型：metric, labels, scrape_time
-MetricCallback: TypeAlias = Callable[[], None]
+MetricCallback = Callable[[], None]
 
 
 class MetricEngine:
@@ -71,8 +71,8 @@ class MetricEngine:
         self._thread.join()
 
     def get_metric(
-        self, metric_name: str, labels: dict[str, str] | None = None
-    ) -> Metric | None:
+        self, metric_name: str, labels: Optional[dict[str, str]] = None
+    ) -> Optional[Metric]:
         """
         获取最新的指定 metric，并按 labels 过滤。
         """
@@ -93,9 +93,9 @@ class MetricEngine:
         self,
         metric_name: str,
         start_time: float,
-        end_time: float | None = None,
-        labels: dict[str, str] | None = None,
-    ) -> Metric | None:
+        end_time: Optional[float] = None,
+        labels: Optional[dict[str, str]] = None,
+    ) -> Optional[Metric]:
         """
         获取指定时间范围内的 metric 数据，并按 labels 过滤。
         :param metric_name: 指标名称
@@ -109,7 +109,8 @@ class MetricEngine:
         if end_time is None:
             end_time = time.time()
 
-        start_idx = bisect.bisect_left(self.history, start_time, key=lambda x: x[0])
+        keys = [x[0] for x in self.history]
+        start_idx = bisect.bisect_left(keys, start_time)
         end_idx = len(self.history)
         filed_metric: Metric | None = None
         for i in range(start_idx, end_idx):
@@ -131,7 +132,7 @@ class MetricEngine:
             )
         return filed_metric
 
-    def get_last_scrape_time(self) -> float | None:
+    def get_last_scrape_time(self) -> Optional[float]:
         """
         获取最后一次采集的时间戳
         :return: 最后一次采集的时间戳
