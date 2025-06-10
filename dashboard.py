@@ -12,6 +12,7 @@ from metrics.analyze import (
     MemoryCommitAnalyzer,
     NetworkSpeedAnalyzerV2,
     LogicalDiskSizeAnalyzer,
+    GpuUsageAnalyzer,
 )
 from metrics.collect import RemoteMetricsCollector
 from metrics.engine import MetricEngine
@@ -73,6 +74,11 @@ class MonitoringDashboardApp:
         self.logical_disk_usage_chart = DiskProgressBars(root, title="Disk Usage")
         self.add_chart(self.logical_disk_usage_chart)
 
+        self.gpu_chart = TimeSeries(
+            root, outline="steelblue", title="GPU Usage", unit=" %", decimal_places=1
+        )
+        self.add_chart(self.gpu_chart)
+
         self.engine = MetricEngine(interval=1, history_size=600)
         self.engine.register_collector(RemoteMetricsCollector(exporter_url))
         self.engine.register_analyzer(CpuUsageAnalyzer())
@@ -81,6 +87,7 @@ class MonitoringDashboardApp:
         self.engine.register_analyzer(NetworkSpeedAnalyzerV2())
         self.engine.register_analyzer(MemoryCommitAnalyzer())
         self.engine.register_analyzer(LogicalDiskSizeAnalyzer())
+        self.engine.register_analyzer(GpuUsageAnalyzer())
 
         # 用于保存历史数据，便于后续画图
         self.scrape_time = 0
@@ -93,6 +100,7 @@ class MonitoringDashboardApp:
         self.cpu_heatmap_history: list[tuple[float, list[float]]] = []
         self.memory_commit_history: list[tuple[float, float]] = []
         self.logical_disk_space_values: list[tuple[str, float, float]] = []
+        self.gpu_history: list[tuple[float, float]] = []
 
         self.root.after_idle(self.check_queue)
 
@@ -132,6 +140,9 @@ class MonitoringDashboardApp:
         )
         logical_disk_total_metrics = self.engine.get_metric("logical_disk_size_bytes")
         logical_disk_free_metrics = self.engine.get_metric("logical_disk_free_bytes")
+        gpu_usage_metrics = self.engine.get_metric_range(
+            "gpu_usage_percent", scrape_time - 61, scrape_time
+        )
 
         self.scrape_time = scrape_time
         self.cpu_history = get_value_from_metric(cpu_usage_metrics)
@@ -207,6 +218,10 @@ class MonitoringDashboardApp:
         ]
         self.cpu_heatmap_chart.update_values(
             self.cpu_heatmap_history, self.scrape_time - 60, self.scrape_time
+        )
+        self.gpu_history = get_value_from_metric(gpu_usage_metrics, {"device": "0"})
+        self.gpu_chart.update_values(
+            self.gpu_history, self.scrape_time - 60, self.scrape_time
         )
 
     def draw_charts(self):

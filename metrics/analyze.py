@@ -424,3 +424,70 @@ class LogicalDiskSizeAnalyzer(MetricAnalyzer):
                 timestamp=scrape_time,
             )
         yield free_space_metric
+
+
+class GpuUsageAnalyzer(MetricAnalyzer):
+    """
+    分析 GPU 使用率
+    """
+
+    def __init__(self, device="0"):
+        """
+        device: 指定 GPU 设备编号，默认为 "0"
+        """
+        self.device = device
+        self.prev_gpu_seconds = 0.0  # 上次采集的 GPU 时间
+        self.prev_scrape_time = 0.0  # 上次采集时间
+
+    def analyze(
+        self, metrics: dict[str, Metric], scrape_time: float
+    ) -> Iterable[Metric]:
+        """
+        metrics: 采集到的所有 MetricFamily 或 Sample
+        返回：新的 MetricFamily 或 Sample 列表
+        """
+        # 1. 收集 GPU 使用率指标
+        gpu_usage_metric = metrics.get("windows_gpu_engine_time_seconds")
+        if not gpu_usage_metric:
+            return []
+
+        # 2. 计算 GPU 使用率
+        gpu_usage = self.calculate_gpu_usage(gpu_usage_metric.samples, scrape_time)
+
+        # 3. 返回新的指标
+        new_metric = Metric("gpu_usage_percent", "GPU Usage Percentage", "gauge")
+        new_metric.add_sample(
+            "gpu_usage_percent",
+            {"device": self.device},
+            value=gpu_usage,
+            timestamp=scrape_time,
+        )
+
+        return [new_metric]
+
+    def calculate_gpu_usage(
+        self, samples: Iterable[Sample], scrape_time: float
+    ) -> float:
+        """
+        计算 GPU 使用率（百分比）
+        samples: GPU 使用率指标的样本列表
+        scrape_time: 当前采集时间
+        返回：GPU 使用率（百分比）
+        """
+        # 1. 获取当前 GPU 时间
+        current_gpu_seconds = next(
+            (s.value for s in samples if s.labels.get("device") == self.device), 0.0
+        )
+
+        # 2. 计算增量和时间差
+        delta_gpu_seconds = current_gpu_seconds - self.prev_gpu_seconds
+        delta_time = scrape_time - self.prev_scrape_time
+
+        # 3. 计算 GPU 使用率
+        gpu_usage = (delta_gpu_seconds / delta_time * 100) if delta_time > 0 else 0.0
+
+        # 4. 更新历史数据
+        self.prev_gpu_seconds = current_gpu_seconds
+        self.prev_scrape_time = scrape_time
+
+        return gpu_usage
