@@ -6,7 +6,7 @@ from typing import Iterable
 from prometheus_client import Metric
 from prometheus_client.samples import Sample
 
-from metrics.index import avg_by, sum_by
+from metrics.index import avg_by, sum_by, filter_by_labels
 
 
 class MetricAnalyzer:
@@ -476,13 +476,12 @@ class GpuUsageAnalyzer(MetricAnalyzer):
         """
         # 1. 获取当前 GPU 时间
         current_gpu_seconds = next(
-            (
-                s.value
-                for s in samples
-                if s.labels.get("phys") == self.device and s.labels.get("eng") == "0"
-            ),
-            0.0,
-        )
+            iter(
+                sum_by(
+                    filter_by_labels(samples, {"phys": self.device, "eng": "0"}),
+                )
+            )
+        ).value
 
         # 2. 计算增量和时间差
         delta_gpu_seconds = current_gpu_seconds - self.prev_gpu_seconds
