@@ -476,7 +476,12 @@ class GpuUsageAnalyzer(MetricAnalyzer):
         """
         # 1. 获取当前 GPU 时间
         current_gpu_seconds = next(
-            (s.value for s in samples if s.labels.get("device") == self.device), 0.0
+            (
+                s.value
+                for s in samples
+                if s.labels.get("phys") == self.device and s.labels.get("eng") == "0"
+            ),
+            0.0,
         )
 
         # 2. 计算增量和时间差
