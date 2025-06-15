@@ -1,8 +1,29 @@
 import argparse
+import ctypes
 
 import pygame
 
 from config import DEFAULT_EXPORTER_URL
+
+# 普通字体列表
+normal_fonts = [
+    "PibotoLt", "DejaVu Sans", "Segoe UI", "Microsoft YaHei UI", "Arial"
+]
+
+# 等宽字体列表
+monospace_fonts = [
+    "Consolas", "DejaVu Sans Mono", "monospace"
+]
+
+# 中文字体列表
+chinese_fonts = [
+    "WenQuanYi Zen Hei", "Microsoft YaHei", "SimSun"
+]
+
+
+def get_font(font_list, size):
+    """返回第一个可用字体对象"""
+    return pygame.font.SysFont(font_list, size)
 
 
 def main():
@@ -25,6 +46,8 @@ def main():
     )
     args = parser.parse_args()
 
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+
     # Initialize pygame and print available fonts
     print("Available fonts:")
     fonts = pygame.font.get_fonts()
@@ -32,17 +55,20 @@ def main():
         print(name)
 
     pygame.init()
-    screen = pygame.display.set_mode(
-        (800, 480), pygame.FULLSCREEN if args.fullscreen else 0
-    )
     pygame.display.set_caption("Monitoring Dashboard")
+    if args.fullscreen:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        pygame.mouse.set_visible(False)
+    else:
+        screen = pygame.display.set_mode((800, 480))
 
     clock = pygame.time.Clock()
     running = True
     dt = 0
 
-    # font = pygame.font.SysFont("pibotolt", 12)  # If only english characters are needed
-    font = pygame.font.SysFont("wenquanyizenhei", 12)
+    font_normal = get_font(normal_fonts, 12)
+    font_mono = get_font(monospace_fonts, 12)
+    font_chinese = get_font(chinese_fonts, 12)
 
     while running:
         # poll for events
@@ -57,7 +83,7 @@ def main():
         if args.show_fps:
             # 获取FPS
             fps = clock.get_fps()
-            fps_text = font.render(f"{fps:.0f}", True, (0, 255, 0))
+            fps_text = font_mono.render(f"{fps:.0f}", True, (0, 255, 0))
             # 绘制到左上角
             screen.blit(fps_text, (4, 4))
 
