@@ -114,8 +114,8 @@ class MemoryUsageAnalyzer(MetricAnalyzer):
         返回：新的 MetricFamily 或 Sample 列表
         """
         # 1. 收集内存指标
-        memory_free_metric = metrics.get("windows_os_physical_memory_free_bytes")
-        memory_total_metric = metrics.get("windows_cs_physical_memory_bytes")
+        memory_free_metric = metrics.get("windows_memory_physical_free_bytes")
+        memory_total_metric = metrics.get("windows_memory_physical_total_bytes")
         if not memory_free_metric or not memory_total_metric:
             return
 
