@@ -184,6 +184,7 @@ class DiskProgressBars(Chart):
                         padx=5,
                         pady=(5, 0),
                     )
+                    self.disk_size_labels.append(disk_size_label)
                     row += 1
 
                     label = ttk.Label(self.frame, text=disk_name)
@@ -196,6 +197,9 @@ class DiskProgressBars(Chart):
                     self.disk_bars.append(progress_bar)
                     row += 1
                 else:
+                    self.disk_size_labels[idx].config(
+                        text=f"{disk_size} ({percent:.3g}%)"
+                    )
                     self.disk_labels[idx].config(text=disk_name)
                     self.disk_bars[idx].update_values(value)
 
