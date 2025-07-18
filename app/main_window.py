@@ -1,11 +1,12 @@
 import queue
 import tkinter as tk
 
+from app.config_types import AppConfig
 from chart_widgets.chart import Chart, EmptyChart
 from chart_widgets.heatmap import Heatmap
 from chart_widgets.progress_bar import DiskProgressBars
 from chart_widgets.time_series import TimeSeries
-from metrics.analyze import (
+from logic.analyze import (
     CpuUsageAnalyzer,
     MemoryUsageAnalyzer,
     PhysicalDiskActiveTimeAnalyzer,
@@ -14,19 +15,23 @@ from metrics.analyze import (
     LogicalDiskSizeAnalyzer,
     GpuUsageAnalyzer,
 )
-from metrics.collect import RemoteMetricsCollector
-from metrics.engine import MetricEngine
-from metrics.index import get_value_from_metric, get_value_from_metric_group_by
+from logic.collect import RemoteMetricsCollector
+from logic.engine import MetricEngine
+from logic.index import get_value_from_metric, get_value_from_metric_group_by
 
 
 class MonitoringDashboardApp:
-    def __init__(self, root: tk.Tk, exporter_url: str):
+    def __init__(self, root: tk.Tk, app_config: AppConfig):
         self.root: tk.Tk = root
         self.q = queue.Queue()
 
-        self.root.title("MonitoringDashboard")
+        self.root.title(app_config.get("title", "Monitoring Dashboard"))
         self.w, self.h = 600, 400
         self.root.geometry(f"{self.w}x{self.h}")
+        if app_config["fullscreen"]:
+            root.attributes("-fullscreen", True)
+            root.config(cursor="none")
+
         self.root.config(padx=2, pady=2)
 
         self.add_right_click_exit_menu()
@@ -80,7 +85,7 @@ class MonitoringDashboardApp:
         self.add_chart(self.gpu_chart)
 
         self.engine = MetricEngine(interval=1, history_size=600)
-        self.engine.register_collector(RemoteMetricsCollector(exporter_url))
+        self.engine.register_collector(RemoteMetricsCollector(app_config["url"]))
         self.engine.register_analyzer(CpuUsageAnalyzer())
         self.engine.register_analyzer(MemoryUsageAnalyzer())
         self.engine.register_analyzer(PhysicalDiskActiveTimeAnalyzer())
