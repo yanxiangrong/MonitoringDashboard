@@ -5,7 +5,7 @@ from typing import Iterable, Literal, Optional
 from prometheus_client import Metric
 from prometheus_client.samples import Sample
 
-from metrics.utils import assert_samples_consistent
+from .utils import assert_samples_consistent
 
 
 def build_metric_map(metrics: Iterable[Metric]) -> dict[str, Metric]:

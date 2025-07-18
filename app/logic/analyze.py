@@ -6,7 +6,7 @@ from typing import Iterable
 from prometheus_client import Metric
 from prometheus_client.samples import Sample
 
-from metrics.index import avg_by, sum_by, filter_by_labels
+from .index import avg_by, sum_by, filter_by_labels
 
 
 class MetricAnalyzer:

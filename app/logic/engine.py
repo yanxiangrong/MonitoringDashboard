@@ -6,8 +6,8 @@ from typing import Callable, Optional, Deque
 
 from prometheus_client import CollectorRegistry, Metric
 
-from metrics.analyze import MetricAnalyzer
-from metrics.index import filter_by_labels, build_metric_map
+from .analyze import MetricAnalyzer
+from .index import filter_by_labels, build_metric_map
 
 # 回调类型：metric, labels, scrape_time
 MetricCallback = Callable[[], None]

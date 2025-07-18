@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-from chart_widgets.chart import Chart
+from .chart import Chart
 
 
 class ProgressBar(Chart):

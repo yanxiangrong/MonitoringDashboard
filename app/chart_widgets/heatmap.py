@@ -1,4 +1,4 @@
-from chart_widgets.chart import Chart
+from .chart import Chart
 
 
 class Heatmap(Chart):

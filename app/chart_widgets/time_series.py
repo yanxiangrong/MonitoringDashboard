@@ -1,7 +1,7 @@
 import math
 
-from chart_widgets.chart import Chart
-from chart_widgets.utils import rgb_to_hex, blend_color
+from .chart import Chart
+from .utils import rgb_to_hex, blend_color
 
 
 class TimeSeries(Chart):
