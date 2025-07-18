@@ -14,7 +14,7 @@
 ## 预览
 
 ![预览图1](images/IMG_20250718_174138.jpg)
-![预览图2](images/screenshot1.png)
+![预览图2](images/screenshot1.PNG)
 
 ## 配置说明
 

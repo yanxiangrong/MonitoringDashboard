@@ -16,7 +16,7 @@ A simple monitoring dashboard based on Tkinter, designed specifically for [windo
 ## Preview
 
 ![Preview 1](images/IMG_20250718_174138.jpg)
-![Preview 2](images/screenshot1.png)
+![Preview 2](images/screenshot1.PNG)
 
 ## Configuration
 
