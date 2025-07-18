@@ -1,83 +1,86 @@
 # Monitoring Dashboard
 
-一个基于 Tkinter 的简易监控大屏，专为 [windows_exporter](https://github.com/prometheus-community/windows_exporter) 设计，支持在树莓派等低功耗设备上运行，实现对 Windows 主机的资源监控与可视化。
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-## 功能特性
+A simple monitoring dashboard based on Tkinter, designed specifically for [windows_exporter](https://github.com/prometheus-community/windows_exporter). It supports running on low-power devices such as Raspberry Pi, enabling resource monitoring and visualization for Windows hosts.
 
-- 实时拉取 windows_exporter 指标数据
-- 支持 CPU、内存、磁盘、网络、GPU 等多种资源监控
-- 历史数据追踪与可视化
-- 支持全屏显示，适合大屏展示
-- 配置灵活，支持命令行参数和 YAML 配置文件
-- 可在树莓派等 ARM 设备上运行，适合 DIY 监控大屏
+## Features
 
-## 预览
+- Real-time fetching of metrics from windows_exporter
+- Supports monitoring of CPU, memory, disk, network, GPU, and more
+- Historical data tracking and visualization
+- Fullscreen mode, suitable for large screen displays
+- Flexible configuration via command-line arguments and YAML file
+- Runs on ARM devices like Raspberry Pi, perfect for DIY monitoring screens
 
-![预览图1](images/IMG_20250718_174138.jpg)
-![预览图2](images/screenshot1.png)
+## Preview
 
-## 配置说明
+![Preview 1](images/IMG_20250718_174138.jpg)
+![Preview 2](images/screenshot1.png)
 
-所有配置项均可在 `config/config.yaml` 文件中设置：
+## Configuration
+
+All configuration options can be set in the `config/config.yaml` file:
 
 ```yaml
-url: "http://<windows_exporter主机>:9182/metrics"   # Prometheus windows_exporter 地址
-fullscreen: false                                  # 是否全屏
-title: "Monitoring Dashboard"                      # 窗口标题
-refresh_interval: 1.0                              # 刷新间隔（秒）
-fetch_timeout: 0.5                                 # 拉取超时（秒）
-history_length: 600                                # 历史数据长度（秒）
+url: "http://<windows_exporter_host>:9182/metrics"   # Prometheus windows_exporter address
+fullscreen: false                                   # Fullscreen mode
+title: "Monitoring Dashboard"                       # Window title
+refresh_interval: 1.0                               # Refresh interval (seconds)
+fetch_timeout: 0.5                                  # Fetch timeout (seconds)
+history_length: 600                                 # History length (seconds)
 ```
 
-你也可以通过命令行参数覆盖部分配置，例如：
+You can also override some options via command-line arguments, for example:
 
 ```bash
 python main.py --url http://your_exporter:9182/metrics --fullscreen
 ```
 
-## 快速开始
+## Quick Start
 
-1. 克隆本仓库到本地
-2. 安装依赖（如有 requirements.txt，执行 `pip install -r requirements.txt`）
-3. 配置 `config/config.yaml`，将 `url` 设置为你的 windows_exporter 地址
-4. 运行主程序：
+1. Clone this repository to your local machine.
+2. Install dependencies (if you have a `requirements.txt`, run `pip install -r requirements.txt`).
+3. Configure `config/config.yaml`, set the `url` to your windows_exporter address.
+4. Run the main program:
 
    ```bash
    python main.py
    ```
-#### 在树莓派上运行
 
-在树莓派等低功耗设备上，推荐使用 [PyPy3](https://www.pypy.org/) 作为 Python 解释器，可以显著提升程序运行效率。
+### Running on Raspberry Pi
 
-1. 安装 PyPy3（可参考 [PyPy 官方文档](https://www.pypy.org/download.html)）
-2. 使用 PyPy3 安装依赖：
+On low-power devices like Raspberry Pi, it is recommended to use [PyPy3](https://www.pypy.org/) as the Python interpreter for better performance.
+
+1. Install PyPy3 (refer to the [PyPy official documentation](https://www.pypy.org/download.html)).
+2. Install dependencies with PyPy3:
 
    ```bash
    pypy3 -m ensurepip
    pypy3 -m pip install -r requirements.txt
    ```
 
-3. 使用 PyPy3 启动程序：
+3. Start the program with PyPy3:
 
    ```bash
    pypy3 main.py
    ```
 
-## 主要依赖
+## Main Dependencies
 
-- Python 3.12+
+- Python 3.12+ or PyPy3
 - tkinter
 - requests
 - pyyaml
 - prometheus_client
 
-## 代码结构简述
+## Project Structure
 
-- `main.py`：程序入口，负责加载配置、启动主窗口
-- `app/`：核心功能模块，包括数据采集、分析、可视化等
-- `config/`：配置文件目录
-- `images/`：存放预览图片
+- `main.py`: Entry point, loads configuration and starts the main window
+- `app/`: Core modules, including data collection, analysis, and visualization
+- `config/`: Configuration files
+- `images/`: Preview images
 
-## 联系方式
+## Contact
 
-如有问题或建议，欢迎提 issue 或联系作者。
+If you have any questions or suggestions, feel free to open an issue or contact the author.
