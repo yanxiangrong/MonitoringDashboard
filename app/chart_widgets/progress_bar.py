@@ -167,15 +167,19 @@ class DiskProgressBars(Chart):
             for idx, (disk_name, free_space, total_space) in enumerate(self.disk_data):
                 percent = (total_space - free_space) / total_space * 100
                 value = round(percent)
-                # disk_size = convert_bytes(total_space)
-                # free_size = convert_bytes(free_space)
-                disk_size = convert_bytes2(free_space, total_space)
+                if self.winfo_width() >= 170:
+                    disk_size = convert_bytes(total_space)
+                    free_size = convert_bytes(free_space)
+                    text = f"{free_size} / {disk_size} ({percent:.3g}%)"
+                elif self.winfo_width() >= 150:
+                    disk_size = convert_bytes2(free_space, total_space)
+                    text = f"{disk_size} ({percent:.3g}%)"
+                else:
+                    free_size = convert_bytes(free_space)
+                    text = f"{free_size} ({percent:.3g}%)"
 
                 if idx >= len(self.disk_bars):
-                    disk_size_label = ttk.Label(
-                        self.frame,
-                        text=f"{disk_size} ({percent:.3g}%)",
-                    )
+                    disk_size_label = ttk.Label(self.frame, text=text)
                     disk_size_label.grid(
                         row=row,
                         column=0,
@@ -197,9 +201,7 @@ class DiskProgressBars(Chart):
                     self.disk_bars.append(progress_bar)
                     row += 1
                 else:
-                    self.disk_size_labels[idx].config(
-                        text=f"{disk_size} ({percent:.3g}%)"
-                    )
+                    self.disk_size_labels[idx].config(text=text)
                     self.disk_labels[idx].config(text=disk_name)
                     self.disk_bars[idx].update_values(value)
 
