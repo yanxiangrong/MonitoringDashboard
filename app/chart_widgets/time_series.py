@@ -10,8 +10,8 @@ class TimeSeries(Chart):
         self.title = kwargs.pop("title", "")
         self.decimal_places = kwargs.pop("decimal_places", 1)
         self.unit = kwargs.pop("unit", "%")
-        self.max_value = kwargs.pop("max_value", 100)
-        self.min_value = kwargs.pop("min_value", 0)
+        self.max_value = float(kwargs.pop("max_value", 100))
+        self.min_value = float(kwargs.pop("min_value", 0))
         self.log_scale = kwargs.pop("log_scale", False)
 
         super().__init__(master, **kwargs)
@@ -24,10 +24,10 @@ class TimeSeries(Chart):
         )
 
     def update_values(
-        self,
-        values: list[tuple[float, float]],
-        start_time: float,
-        end_time: float,
+            self,
+            values: list[tuple[float, float]],
+            start_time: float,
+            end_time: float,
     ):
         self.values = values
         self.start_time = start_time
@@ -46,8 +46,8 @@ class TimeSeries(Chart):
         offset = self.end_time % (dt / 10) if dt > 0 else 0
         for i in range(0, 10):
             x = (
-                int(((i + 1) / 10 - (offset / dt if dt > 0 else 0)) * content_w)
-                + content_x
+                    int(((i + 1) / 10 - (offset / dt if dt > 0 else 0)) * content_w)
+                    + content_x
             )
             self.create_line(
                 x,
@@ -73,11 +73,12 @@ class TimeSeries(Chart):
             # 计算所有点
             points = []
             for ts, val in self.values:
+                val = min(max(val, self.min_value), self.max_value)
                 x = int((ts - self.start_time) * content_w / dt) + content_x
                 if self.log_scale:
                     c = 10
                     norm = (math.log10(val + c) - math.log10(self.min_value + c)) / (
-                        math.log10(self.max_value + c) - math.log10(self.min_value + c)
+                            math.log10(self.max_value + c) - math.log10(self.min_value + c)
                     )
                 else:
                     norm = (
@@ -91,9 +92,9 @@ class TimeSeries(Chart):
             # 构造多边形点序列（首尾加底边）
             if len(points) >= 2:
                 poly_points = (
-                    [(points[0][0], content_y + content_h - 1)]
-                    + points
-                    + [(points[-1][0], content_y + content_h - 1)]
+                        [(points[0][0], content_y + content_h - 1)]
+                        + points
+                        + [(points[-1][0], content_y + content_h - 1)]
                 )
                 # 转为一维坐标序列
                 poly_coords = [coord for point in poly_points for coord in point]

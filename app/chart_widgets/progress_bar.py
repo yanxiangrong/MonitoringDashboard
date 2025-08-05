@@ -17,9 +17,9 @@ class ProgressBar(Chart):
             master: The parent widget.
             **kwargs: Additional keyword arguments.
         """
-        self.max_value = kwargs.pop("max_value", 100)
-        self.min_value = kwargs.pop("min_value", 0)
-        self.value = kwargs.pop("value", 0)
+        self.max_value = float(kwargs.pop("max_value", 100))
+        self.min_value = float(kwargs.pop("min_value", 0))
+        self.value = float(kwargs.pop("value", 0))
         self.level_color = kwargs.pop(
             "level_color",
             [(90, "#26a0da"), (100, "#da2626")],
@@ -50,7 +50,8 @@ class ProgressBar(Chart):
 
         self.draw_clear()
 
-        # Draw the progress bar
+        # Draw the progress barfloat()
+        self.value = max(self.min_value, min(self.value, self.max_value))
         progress = (self.value - self.min_value) / (self.max_value - self.min_value)
         progress = max(0.0, min(progress, 1.0))
         fill_width = round((content_w - 2) * progress)

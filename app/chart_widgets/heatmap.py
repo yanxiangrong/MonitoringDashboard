@@ -15,8 +15,8 @@ class Heatmap(Chart):
             **kwargs: Additional keyword arguments.
         """
 
-        self.max_value = kwargs.pop("max_value", 100)
-        self.min_value = kwargs.pop("min_value", 0)
+        self.max_value = float(kwargs.pop("max_value", 100))
+        self.min_value = float(kwargs.pop("min_value", 0))
         self.title = kwargs.pop("title", "")
 
         super().__init__(master, **kwargs)
@@ -69,6 +69,7 @@ class Heatmap(Chart):
                     + content_x
                 )
                 for i, val in enumerate(data):
+                    val = max(self.min_value, min(val, self.max_value))
                     h = int((content_h - 2) / len(data)) + 1
                     w = int(content_w / 20)
                     y = int(i * (content_h - 2) / len(data) + content_y + 1)
